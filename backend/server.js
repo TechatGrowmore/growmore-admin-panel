@@ -13,6 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
+// In production, frontend is served by this same Express server (same origin),
+// so CORS is only needed for local development.
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -22,14 +24,14 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g., mobile apps, curl, Render health checks)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS: origin ${origin} not allowed`));
-      }
+      // In production, same-origin requests have no Origin header — always allow
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // In production, allow same Render domain
+      if (process.env.NODE_ENV === 'production') return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
     },
-    credentials: true, // required for httpOnly cookies
+    credentials: true,
   })
 );
 
@@ -55,11 +57,9 @@ app.get('/api/health', (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   const frontendBuild = path.join(__dirname, '..', 'frontend', 'dist');
   app.use(express.static(frontendBuild));
-  // All non-API routes → return React app (client-side routing)
+  // SPA catch-all: serve index.html for any non-API route (client-side routing)
   app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(frontendBuild, 'index.html'));
-    }
+    res.sendFile(path.join(frontendBuild, 'index.html'));
   });
 }
 

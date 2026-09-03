@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: growmore-admin-panel
+    runtime: node
+    plan: free
+
+    # Run from the repo root
+    rootDir: .
+
+    # 1. Install all deps and build the React frontend
+    buildCommand: npm run build
+
+    # 2. Start the Express server (serves API + built React)
+    startCommand: npm start
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 10000
+
+      # ── Fill these in Render Dashboard → Environment ──────────────────────
+      - key: MONGODB_URI
+        sync: false   # secret — enter manually in Render dashboard
+
+      - key: ADMIN_USERNAME
+        sync: false
+
+      - key: ADMIN_PASSWORD_HASH
+        sync: false   # SHA-256 of your password
+
+      - key: ADMIN_JWT_SECRET
+        sync: false   # long random string
+
+      # Leave empty — Express serves both API and frontend from same origin
+      - key: FRONTEND_URL
+        value: ""

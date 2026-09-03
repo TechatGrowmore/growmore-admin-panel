@@ -1,16 +1,14 @@
 {
   "name": "growmore-admin-panel",
   "version": "1.0.0",
-  "description": "GrowMore Admin Panel - MERN Stack",
+  "description": "GrowMore Admin Panel - MERN Stack (single Render service)",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm run dev",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "build": "cd frontend && npm run build",
-    "start": "cd backend && npm start"
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "start": "node backend/server.js",
+    "dev": "concurrently \"nodemon backend/server.js\" \"npm run dev --prefix frontend\""
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.3"
   }
 }

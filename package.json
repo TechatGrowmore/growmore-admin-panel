@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "GrowMore Admin Panel - MERN Stack (single Render service)",
   "scripts": {
-    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "build": "npm install --prefix backend && npm install --prefix frontend --include=dev && npm run build --prefix frontend",
     "start": "node backend/server.js",
     "dev": "concurrently \"nodemon backend/server.js\" \"npm run dev --prefix frontend\""
   },

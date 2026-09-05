@@ -20,6 +20,9 @@ router.get('/', async (req, res) => {
         ? `${obj.apiKey.slice(0, 8)}...${obj.apiKey.slice(-4)}`
         : '';
       obj.hasApiKey = !!c.apiKey;
+      obj.hasAdminCredentials = !!(c.adminPhone && c.adminPassword);
+      // Never expose the password
+      delete obj.adminPassword;
       return obj;
     });
     return res.json({ clients: safeClients });
@@ -36,12 +39,12 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, apiUrl, apiKey, logo } = req.body;
+    const { name, apiUrl, apiKey, logo, adminPhone, adminPassword } = req.body;
     if (!name || !apiUrl || !apiKey) {
       return res.status(400).json({ message: 'name, apiUrl, and apiKey are required' });
     }
 
-    const client = await Client.create({ name, apiUrl, apiKey, logo });
+    const client = await Client.create({ name, apiUrl, apiKey, logo, adminPhone, adminPassword });
     return res.status(201).json({ client: client.toJSON() });
   } catch (err) {
     console.error('[Clients] POST error:', err);
@@ -66,6 +69,11 @@ router.put('/:id', async (req, res) => {
     // Only update apiKey if explicitly provided
     if (!updates.apiKey) {
       delete updates.apiKey;
+    }
+
+    // Only update adminPassword if explicitly provided (blank = keep existing)
+    if (!updates.adminPassword) {
+      delete updates.adminPassword;
     }
 
     const client = await Client.findByIdAndUpdate(id, updates, {

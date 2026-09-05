@@ -17,6 +17,16 @@ const clientSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Credentials for the client's backend admin user.
+    // Used by the proxy to obtain a JWT when forwarding admin operations.
+    adminPhone: {
+      type: String,
+      default: null,
+    },
+    adminPassword: {
+      type: String,
+      default: null,
+    },
     logo: {
       type: String,
       default: null,

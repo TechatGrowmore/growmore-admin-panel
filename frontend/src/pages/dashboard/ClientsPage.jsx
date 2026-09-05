@@ -5,7 +5,7 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
-  const [form, setForm] = useState({ name: '', apiUrl: '', apiKey: '' });
+  const [form, setForm] = useState({ name: '', apiUrl: '', apiKey: '', adminPhone: '', adminPassword: '' });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(null);
   const [testResults, setTestResults] = useState({});
@@ -32,13 +32,13 @@ export default function ClientsPage() {
 
   const openAdd = () => {
     setEditingClient(null);
-    setForm({ name: '', apiUrl: '', apiKey: '' });
+    setForm({ name: '', apiUrl: '', apiKey: '', adminPhone: '', adminPassword: '' });
     setShowModal(true);
   };
 
   const openEdit = (client) => {
     setEditingClient(client);
-    setForm({ name: client.name, apiUrl: client.apiUrl, apiKey: '' });
+    setForm({ name: client.name, apiUrl: client.apiUrl, apiKey: '', adminPhone: client.adminPhone || '', adminPassword: '' });
     setShowModal(true);
   };
 
@@ -54,8 +54,16 @@ export default function ClientsPage() {
             name: form.name,
             apiUrl: form.apiUrl,
             ...(form.apiKey ? { apiKey: form.apiKey } : {}),
+            adminPhone: form.adminPhone || undefined,
+            ...(form.adminPassword ? { adminPassword: form.adminPassword } : {}),
           }
-        : form;
+        : {
+            name: form.name,
+            apiUrl: form.apiUrl,
+            apiKey: form.apiKey,
+            adminPhone: form.adminPhone || undefined,
+            adminPassword: form.adminPassword || undefined,
+          };
 
       const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients';
       const method = editingClient ? 'PUT' : 'POST';
@@ -165,6 +173,7 @@ export default function ClientsPage() {
                 <th>Client Name</th>
                 <th>API URL</th>
                 <th>API Key</th>
+                <th>Admin Auth</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -192,6 +201,13 @@ export default function ClientsPage() {
                       >
                         {client.apiKey}
                       </code>
+                    </td>
+                    <td>
+                      {client.hasAdminCredentials ? (
+                        <span className="badge badge-success">✓ Set</span>
+                      ) : (
+                        <span className="badge badge-warning" title="Edit client to add admin credentials">⚠ Missing</span>
+                      )}
                     </td>
                     <td>
                       {test ? (
@@ -277,6 +293,37 @@ export default function ClientsPage() {
                   onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
                   placeholder="Paste the PUBLIC_DATA_API_KEY from client's .env"
                 />
+              </div>
+              <div style={{ borderTop: '1px solid var(--border)', margin: '16px 0', paddingTop: 16 }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                  🔐 <strong>Admin Credentials</strong> — used by the proxy to authenticate admin operations (mark paid, delete, manage team).
+                </p>
+                <div className="form-group">
+                  <label>Admin Phone</label>
+                  <input
+                    className="form-input"
+                    value={form.adminPhone}
+                    onChange={(e) => setForm((f) => ({ ...f, adminPhone: e.target.value }))}
+                    placeholder="Admin phone number registered in the client app"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>
+                    Admin Password{' '}
+                    {editingClient && (
+                      <span style={{ fontWeight: 400, textTransform: 'none' }}>
+                        (leave blank to keep existing)
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    value={form.adminPassword}
+                    onChange={(e) => setForm((f) => ({ ...f, adminPassword: e.target.value }))}
+                    placeholder="Admin password"
+                  />
+                </div>
               </div>
             </div>
             <div className="modal-footer">

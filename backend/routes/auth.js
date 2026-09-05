@@ -25,24 +25,31 @@ router.post('/login', async (req, res) => {
     }
 
     const trimmedUser = username.trim();
+    const inputHash = hashPassword(password);
+    const trimmedHash = hashPassword(password.trim());
 
-    // ─── Operational Manager Login ──────────────────────────────────────────
-    if (loginType === 'manager') {
-      const manager = await OperationalManager.findOne({
-        username: trimmedUser.toLowerCase(),
-      });
+    const adminUsername = (process.env.ADMIN_USERNAME || 'admin').trim();
+    const adminPasswordHash =
+      process.env.ADMIN_PASSWORD_HASH || hashPassword('growmore2024');
 
-      if (!manager) {
-        return res.status(401).json({ message: 'Operational Manager not found' });
-      }
+    const isAdminMatch =
+      trimmedUser.toLowerCase() === adminUsername.toLowerCase() &&
+      (inputHash === adminPasswordHash || trimmedHash === adminPasswordHash);
 
+    // Helper to log in as Operational Manager
+    const loginAsManager = async (manager) => {
       if (manager.isActive === false) {
-        return res.status(403).json({ message: 'Your manager account has been deactivated. Please contact the administrator.' });
+        return res.status(403).json({
+          message: 'Your manager account has been deactivated. Please contact the administrator.',
+        });
       }
 
-      const inputHash = hashPassword(password);
-      if (inputHash !== manager.password) {
-        return res.status(401).json({ message: 'Invalid password' });
+      const passwordMatches =
+        inputHash === manager.password || trimmedHash === manager.password;
+
+      if (!passwordMatches) {
+        console.warn(`[Auth] Password mismatch for manager: ${manager.username}`);
+        return res.status(401).json({ message: 'Incorrect password' });
       }
 
       // Update last login
@@ -55,7 +62,9 @@ router.post('/login', async (req, res) => {
         username: manager.username,
         role: 'manager',
         allSites: !!manager.allSites,
-        assignedClients: (manager.assignedClients || []).map((id) => id.toString()),
+        assignedClients: (manager.assignedClients || []).map((id) =>
+          typeof id === 'object' && id._id ? id._id.toString() : id.toString()
+        ),
       };
 
       const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '24h' });
@@ -68,44 +77,82 @@ router.post('/login', async (req, res) => {
         path: '/',
       });
 
+      console.log(`[Auth] Operational Manager "${manager.username}" logged in successfully`);
       return res.json({
         success: true,
         user: userPayload,
       });
-    }
-
-    // ─── Super Admin Login ──────────────────────────────────────────────────
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPasswordHash =
-      process.env.ADMIN_PASSWORD_HASH || hashPassword('growmore2024');
-
-    const inputHash = hashPassword(password);
-
-    if (trimmedUser !== adminUsername || inputHash !== adminPasswordHash) {
-      return res.status(401).json({ message: 'Invalid admin credentials' });
-    }
-
-    const userPayload = {
-      name: 'Super Admin',
-      username: adminUsername,
-      role: 'superadmin',
-      allSites: true,
     };
 
-    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '24h' });
+    // Helper to log in as Super Admin
+    const loginAsAdmin = () => {
+      const userPayload = {
+        name: 'Super Admin',
+        username: adminUsername,
+        role: 'superadmin',
+        allSites: true,
+      };
 
-    res.cookie('admin_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 1 day in ms
-      path: '/',
+      const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '24h' });
+
+      res.cookie('admin_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+
+      console.log(`[Auth] Super Admin logged in successfully`);
+      return res.json({
+        success: true,
+        user: userPayload,
+      });
+    };
+
+    // ─── If explicitly on Manager tab ───────────────────────────────────────
+    if (loginType === 'manager') {
+      const manager = await OperationalManager.findOne({
+        $or: [
+          { username: trimmedUser.toLowerCase() },
+          { email: trimmedUser.toLowerCase() },
+          { phone: trimmedUser },
+        ],
+      });
+
+      if (manager) {
+        return await loginAsManager(manager);
+      }
+
+      // Fallback: in case admin credentials were typed in manager tab
+      if (isAdminMatch) {
+        return loginAsAdmin();
+      }
+
+      console.warn(`[Auth] Manager not found for input: "${trimmedUser}"`);
+      return res.status(401).json({ message: 'Operational Manager not found. Check your username.' });
+    }
+
+    // ─── If on Super Admin tab ──────────────────────────────────────────────
+    if (isAdminMatch) {
+      return loginAsAdmin();
+    }
+
+    // Fallback: in case manager credentials were typed in admin tab
+    const managerFallback = await OperationalManager.findOne({
+      $or: [
+        { username: trimmedUser.toLowerCase() },
+        { email: trimmedUser.toLowerCase() },
+        { phone: trimmedUser },
+      ],
     });
 
-    return res.json({
-      success: true,
-      user: userPayload,
-    });
+    if (managerFallback) {
+      return await loginAsManager(managerFallback);
+    }
+
+    console.warn(`[Auth] Invalid credentials for: "${trimmedUser}"`);
+    return res.status(401).json({ message: 'Invalid username or password' });
   } catch (err) {
     console.error('[Auth] Login error:', err);
     return res.status(500).json({ message: 'Internal server error' });

@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const OperationalManager = require('../models/OperationalManager');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
@@ -10,7 +11,30 @@ router.use(requireAuth);
 router.use(requireAdmin);
 
 function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+  return crypto.createHash('sha256').update(String(password).trim()).digest('hex');
+}
+
+/**
+ * Safely converts an array of client IDs, strings, or objects into valid Mongoose ObjectIds.
+ */
+function cleanAssignedClients(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((item) => {
+      if (!item) return null;
+      if (typeof item === 'string') {
+        const trimmed = item.trim();
+        return mongoose.Types.ObjectId.isValid(trimmed) ? new mongoose.Types.ObjectId(trimmed) : null;
+      }
+      if (typeof item === 'object') {
+        const id = item.id || item._id;
+        if (id && mongoose.Types.ObjectId.isValid(String(id))) {
+          return new mongoose.Types.ObjectId(String(id));
+        }
+      }
+      return null;
+    })
+    .filter(Boolean);
 }
 
 /**
@@ -58,7 +82,7 @@ router.post('/', async (req, res) => {
       phone: phone ? phone.trim() : '',
       email: email ? email.trim() : '',
       allSites: Boolean(allSites),
-      assignedClients: Array.isArray(assignedClients) ? assignedClients : [],
+      assignedClients: cleanAssignedClients(assignedClients),
       isActive: true,
     });
 
@@ -92,8 +116,8 @@ router.put('/:id', async (req, res) => {
     if (phone !== undefined) manager.phone = phone.trim();
     if (email !== undefined) manager.email = email.trim();
     if (allSites !== undefined) manager.allSites = Boolean(allSites);
-    if (assignedClients !== undefined && Array.isArray(assignedClients)) {
-      manager.assignedClients = assignedClients;
+    if (assignedClients !== undefined) {
+      manager.assignedClients = cleanAssignedClients(assignedClients);
     }
     if (isActive !== undefined) manager.isActive = Boolean(isActive);
 

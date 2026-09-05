@@ -1,13 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { user, setUser, refreshUser } = useAuth();
   const [loginType, setLoginType] = useState('admin'); // 'admin' | 'manager'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // If already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +38,12 @@ export default function LoginPage() {
         return;
       }
 
-      navigate('/dashboard');
+      // Immediately set user in context and refresh
+      if (data.user) {
+        setUser(data.user);
+      }
+      await refreshUser();
+      navigate('/dashboard', { replace: true });
     } catch {
       setError('Network error. Please try again.');
     } finally {

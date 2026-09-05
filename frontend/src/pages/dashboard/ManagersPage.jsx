@@ -84,9 +84,15 @@ export default function ManagersPage() {
   // Open modal for Editing
   const handleOpenEdit = (manager) => {
     setEditManager(manager);
-    const assignedIds = (manager.assignedClients || []).map((c) =>
-      typeof c === 'object' && c._id ? c._id.toString() : c.toString()
-    );
+    const assignedIds = (manager.assignedClients || [])
+      .map((c) => {
+        if (!c) return null;
+        if (typeof c === 'string') return c;
+        if (typeof c === 'object') return (c.id || c._id || '').toString();
+        return null;
+      })
+      .filter((id) => id && id !== '[object Object]');
+
     setFormData({
       name: manager.name || '',
       username: manager.username || '',
@@ -103,12 +109,13 @@ export default function ManagersPage() {
 
   // Toggle client checkbox in modal
   const handleClientToggle = (clientId) => {
+    const cid = String(clientId);
     setFormData((prev) => {
-      const exists = prev.assignedClients.includes(clientId);
+      const exists = prev.assignedClients.some((id) => String(id) === cid);
       if (exists) {
-        return { ...prev, assignedClients: prev.assignedClients.filter((id) => id !== clientId) };
+        return { ...prev, assignedClients: prev.assignedClients.filter((id) => String(id) !== cid) };
       } else {
-        return { ...prev, assignedClients: [...prev.assignedClients, clientId] };
+        return { ...prev, assignedClients: [...prev.assignedClients, cid] };
       }
     });
   };
@@ -117,7 +124,7 @@ export default function ManagersPage() {
   const handleSelectAllClients = () => {
     setFormData((prev) => ({
       ...prev,
-      assignedClients: clients.map((c) => c.id),
+      assignedClients: clients.map((c) => (c.id || c._id || '').toString()).filter(Boolean),
     }));
   };
 
@@ -143,7 +150,16 @@ export default function ManagersPage() {
       return;
     }
 
-    if (!formData.allSites && formData.assignedClients.length === 0) {
+    const cleanAssigned = formData.assignedClients
+      .map((c) => {
+        if (!c) return null;
+        if (typeof c === 'string') return c.trim();
+        if (typeof c === 'object') return (c.id || c._id || '').toString().trim();
+        return null;
+      })
+      .filter((id) => id && id !== '[object Object]');
+
+    if (!formData.allSites && cleanAssigned.length === 0) {
       setFormError('Please either select "All Sites" or choose at least one client site');
       return;
     }
@@ -153,11 +169,19 @@ export default function ManagersPage() {
       const url = editManager ? `/api/managers/${editManager.id}` : '/api/managers';
       const method = editManager ? 'PUT' : 'POST';
 
+      const payload = {
+        ...formData,
+        assignedClients: cleanAssigned,
+      };
+      if (editManager && !payload.password) {
+        delete payload.password;
+      }
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -568,17 +592,18 @@ export default function ManagersPage() {
                         </div>
                       ) : (
                         clients.map((client) => {
-                          const isChecked = formData.assignedClients.includes(client.id);
+                          const cid = (client.id || client._id || '').toString();
+                          const isChecked = formData.assignedClients.some((id) => String(id) === cid);
                           return (
                             <label
-                              key={client.id}
+                              key={cid}
                               className="site-checkbox-item"
                               style={{ background: isChecked ? 'rgba(255,107,53,0.08)' : 'transparent' }}
                             >
                               <input
                                 type="checkbox"
                                 checked={isChecked}
-                                onChange={() => handleClientToggle(client.id)}
+                                onChange={() => handleClientToggle(cid)}
                               />
                               <div style={{ flex: 1 }}>
                                 <span style={{ fontWeight: 600 }}>{client.name}</span>

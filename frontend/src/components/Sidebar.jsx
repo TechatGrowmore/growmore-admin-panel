@@ -1,37 +1,51 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-
-const navItems = [
-  {
-    section: 'Overview',
-    items: [
-      { label: 'Dashboard', path: '/dashboard', icon: '📊' },
-    ],
-  },
-  {
-    section: 'Management',
-    items: [
-      { label: 'Clients', path: '/dashboard/clients', icon: '🏢' },
-      { label: 'Bookings', path: '/dashboard/bookings', icon: '📋' },
-      { label: 'Revenue', path: '/dashboard/revenue', icon: '💰' },
-      { label: 'Transactions', path: '/dashboard/transactions', icon: '💳' },
-    ],
-  },
-  {
-    section: 'Operations',
-    items: [
-      { label: 'Team', path: '/dashboard/team', icon: '👥' },
-      { label: 'Venues', path: '/dashboard/venues', icon: '📍' },
-    ],
-  },
-];
+import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const isSuperAdmin = user?.role === 'superadmin';
+
+  // Build navigation items based on user role
+  const managementItems = [];
+  if (isSuperAdmin) {
+    managementItems.push(
+      { label: 'Clients', path: '/dashboard/clients', icon: '🏢' },
+      { label: 'Managers', path: '/dashboard/managers', icon: '👔' },
+      { label: 'Activity Logs', path: '/dashboard/logs', icon: '📜' }
+    );
+  }
+  managementItems.push(
+    { label: 'Bookings', path: '/dashboard/bookings', icon: '📋' },
+    { label: 'Revenue', path: '/dashboard/revenue', icon: '💰' },
+    { label: 'Transactions', path: '/dashboard/transactions', icon: '💳' }
+  );
+
+  const navItems = [
+    {
+      section: 'Overview',
+      items: [{ label: 'Dashboard', path: '/dashboard', icon: '📊' }],
+    },
+    {
+      section: 'Management',
+      items: managementItems,
+    },
+    {
+      section: 'Operations',
+      items: [
+        { label: 'Team', path: '/dashboard/team', icon: '👥' },
+        { label: 'Venues', path: '/dashboard/venues', icon: '📍' },
+      ],
+    },
+  ];
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    navigate('/');
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
+    window.location.href = '/';
   };
 
   return (
@@ -42,10 +56,16 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="sidebar-brand">
             <div
               style={{
-                width: 36, height: 36, borderRadius: 10,
+                width: 36,
+                height: 36,
+                borderRadius: 10,
                 background: 'linear-gradient(135deg, #FF6B35, #FF8C42)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, fontWeight: 800, color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 16,
+                fontWeight: 800,
+                color: 'white',
               }}
             >
               G
@@ -56,6 +76,21 @@ export default function Sidebar({ isOpen, onClose }) {
             </div>
           </div>
         </div>
+
+        {/* User Card */}
+        {user && (
+          <div className="sidebar-user">
+            <div className="sidebar-user-avatar">
+              {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{user.name || user.username}</div>
+              <div className="sidebar-user-role">
+                {isSuperAdmin ? '🛡️ Super Admin' : '👔 Operations Manager'}
+              </div>
+            </div>
+          </div>
+        )}
 
         <nav className="sidebar-nav">
           {navItems.map((section) => (

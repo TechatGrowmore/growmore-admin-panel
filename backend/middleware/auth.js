@@ -24,4 +24,14 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, JWT_SECRET };
+/**
+ * Express middleware: requires the authenticated user to be a superadmin.
+ */
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'superadmin') {
+    return res.status(403).json({ message: 'Forbidden: Super Admin access required' });
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireAdmin, JWT_SECRET };

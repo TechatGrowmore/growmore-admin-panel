@@ -8,6 +8,8 @@ const path = require('path');
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
 const proxyRoutes = require('./routes/proxy');
+const managerRoutes = require('./routes/managers');
+const logRoutes = require('./routes/logs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,6 +45,8 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/proxy', proxyRoutes);
+app.use('/api/managers', managerRoutes);
+app.use('/api/logs', logRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

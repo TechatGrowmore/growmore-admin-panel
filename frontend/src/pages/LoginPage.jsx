@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [loginType, setLoginType] = useState('admin'); // 'admin' | 'manager'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,7 +19,7 @@ export default function LoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, loginType }),
       });
 
       const data = await res.json();
@@ -48,10 +49,17 @@ export default function LoginPage() {
         <div className="logo-section">
           <div
             style={{
-              width: 56, height: 56, borderRadius: 14,
+              width: 56,
+              height: 56,
+              borderRadius: 14,
               background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 12px', fontSize: 24, fontWeight: 800, color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+              fontSize: 24,
+              fontWeight: 800,
+              color: 'white',
             }}
           >
             G
@@ -60,18 +68,46 @@ export default function LoginPage() {
           <p className="subtitle">Central Valet Parking Management</p>
         </div>
 
+        {/* Tab Switcher for Admin vs Operations Manager */}
+        <div className="login-tabs">
+          <button
+            id="tab-admin"
+            type="button"
+            className={`login-tab ${loginType === 'admin' ? 'active' : ''}`}
+            onClick={() => {
+              setLoginType('admin');
+              setError('');
+            }}
+          >
+            <span>🛡️</span>
+            Super Admin
+          </button>
+          <button
+            id="tab-manager"
+            type="button"
+            className={`login-tab ${loginType === 'manager' ? 'active' : ''}`}
+            onClick={() => {
+              setLoginType('manager');
+              setError('');
+            }}
+          >
+            <span>👔</span>
+            Operations Manager
+          </button>
+        </div>
+
         {error && <div className="login-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Username</label>
+            <label>{loginType === 'admin' ? 'Admin Username' : 'Manager Username'}</label>
             <input
               id="username"
               className="form-input"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter username"
+              placeholder={loginType === 'admin' ? 'Enter admin username' : 'Enter your manager username'}
               required
               autoComplete="username"
             />
@@ -97,8 +133,10 @@ export default function LoginPage() {
                 <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
                 Signing in...
               </>
+            ) : loginType === 'admin' ? (
+              'Sign In as Super Admin'
             ) : (
-              'Sign In'
+              'Sign In as Operations Manager'
             )}
           </button>
         </form>

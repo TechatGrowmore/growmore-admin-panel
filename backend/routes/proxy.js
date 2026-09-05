@@ -1,5 +1,7 @@
 const express = require('express');
 const Client = require('../models/Client');
+const OperationalManager = require('../models/OperationalManager');
+const ActivityLog = require('../models/ActivityLog');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -59,6 +61,123 @@ async function getAdminToken(client) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
+ * Verify whether the current user has access to this client site.
+ */
+async function checkClientAccess(user, clientId) {
+  if (!user || user.role === 'superadmin') return true;
+  if (user.role === 'manager') {
+    const manager = await OperationalManager.findById(user.id);
+    if (!manager || !manager.isActive) return false;
+    if (manager.allSites) return true;
+    return (manager.assignedClients || []).some(
+      (c) => c.toString() === clientId.toString()
+    );
+  }
+  return false;
+}
+
+/**
+ * Record an activity log entry for a mutating operation.
+ */
+async function logActivity({ user, client, method, path, body, status }) {
+  try {
+    const methodUpper = (method || 'GET').toUpperCase();
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(methodUpper)) {
+      return; // only log mutating actions
+    }
+
+    const pathClean = (path || '').replace(/^\/+/, '');
+    const segments = pathClean.split('/'); // e.g. ['bookings', '123', 'payment'] or ['drivers']
+    const mainResource = segments[0] || '';
+    const targetId = segments[1] || '';
+    const subAction = segments[2] || '';
+
+    let entity = 'General';
+    let action = `${methodUpper}_${mainResource.toUpperCase()}`;
+    let description = `${methodUpper} ${pathClean}`;
+
+    if (mainResource === 'bookings') {
+      entity = 'Booking';
+      if (subAction === 'payment') {
+        action = 'UPDATE_PAYMENT';
+        const st = body?.paymentStatus || 'paid';
+        const m = body?.paymentMethod || 'cash';
+        description = `Updated payment to "${st}" (${m}) for booking`;
+      } else if (methodUpper === 'DELETE') {
+        action = 'DELETE_BOOKING';
+        description = `Deleted booking (ID: ${targetId})`;
+      } else if (methodUpper === 'POST') {
+        action = 'CREATE_BOOKING';
+        const cust = body?.customer?.name ? `for ${body.customer.name}` : '';
+        const veh = body?.vehicle?.number ? `(${body.vehicle.number})` : '';
+        description = `Created new booking ${cust} ${veh}`.trim();
+      } else {
+        action = 'UPDATE_BOOKING';
+        description = `Updated booking (ID: ${targetId})`;
+      }
+    } else if (mainResource === 'drivers') {
+      entity = 'Driver';
+      if (methodUpper === 'POST') {
+        action = 'ADD_DRIVER';
+        description = `Added driver "${body?.name || ''}" (${body?.phone || ''})`.trim();
+      } else if (methodUpper === 'PUT' || methodUpper === 'PATCH') {
+        action = 'UPDATE_DRIVER';
+        description = `Updated driver "${body?.name || targetId}"`.trim();
+      } else if (methodUpper === 'DELETE') {
+        action = 'DELETE_DRIVER';
+        description = `Deleted driver (ID: ${targetId})`;
+      }
+    } else if (mainResource === 'supervisors') {
+      entity = 'Supervisor';
+      if (methodUpper === 'POST') {
+        action = 'ADD_SUPERVISOR';
+        description = `Added supervisor "${body?.name || ''}" (${body?.phone || ''})`.trim();
+      } else if (methodUpper === 'PUT' || methodUpper === 'PATCH') {
+        action = 'UPDATE_SUPERVISOR';
+        description = `Updated supervisor "${body?.name || targetId}"`.trim();
+      } else if (methodUpper === 'DELETE') {
+        action = 'DELETE_SUPERVISOR';
+        description = `Deleted supervisor (ID: ${targetId})`;
+      }
+    } else if (mainResource === 'venues') {
+      entity = 'Venue';
+      if (methodUpper === 'POST') {
+        action = 'ADD_VENUE';
+        description = `Added venue "${body?.name || ''}"`.trim();
+      } else if (methodUpper === 'PUT' || methodUpper === 'PATCH') {
+        action = 'UPDATE_VENUE';
+        description = `Updated venue "${body?.name || targetId}"`.trim();
+      } else if (methodUpper === 'DELETE') {
+        action = 'DELETE_VENUE';
+        description = `Deleted venue (ID: ${targetId})`;
+      }
+    }
+
+    await ActivityLog.create({
+      user: {
+        id: user.id || null,
+        name: user.name || user.username || 'User',
+        username: user.username || 'unknown',
+        role: user.role || 'manager',
+      },
+      action,
+      entity,
+      clientId: client._id,
+      clientName: client.name,
+      description,
+      details: {
+        method: methodUpper,
+        path: pathClean,
+        body: body || null,
+      },
+      status: status >= 200 && status < 300 ? 'success' : 'failed',
+    });
+  } catch (logErr) {
+    console.error('[ActivityLog] Failed to record activity:', logErr.message);
+  }
+}
+
+/**
  * Look up a client by MongoDB ID, returning 404 if not found.
  */
 async function resolveClient(clientId, res) {
@@ -72,7 +191,6 @@ async function resolveClient(clientId, res) {
 
 /**
  * Forward a request to the client's backend and pipe the response back.
- * @param {object} extraHeaders - Additional headers to merge (e.g. Authorization).
  */
 async function proxyRequest(req, res, targetUrl, client, extraHeaders = {}) {
   // Forward query params
@@ -94,7 +212,6 @@ async function proxyRequest(req, res, targetUrl, client, extraHeaders = {}) {
 
   const upstream = await fetch(targetUrl.toString(), fetchOptions);
 
-  // Pipe response — handle empty 204 bodies
   if (upstream.status === 204) {
     return res.status(204).end();
   }
@@ -115,22 +232,14 @@ async function proxyRequest(req, res, targetUrl, client, extraHeaders = {}) {
  * ALL /api/proxy/:clientId/admin/*
  * Forwards to: [client.apiUrl]/api/admin/*  (preserves the /admin prefix)
  * Authenticates using a cached JWT obtained via the client's admin credentials.
- *
- * Used for management operations:
- *   PATCH  /api/proxy/:cId/admin/bookings/:id/payment → PATCH  [url]/api/admin/bookings/:id/payment
- *   DELETE /api/proxy/:cId/admin/bookings/:id         → DELETE [url]/api/admin/bookings/:id
- *   POST   /api/proxy/:cId/admin/drivers              → POST   [url]/api/admin/drivers
- *   PUT    /api/proxy/:cId/admin/drivers/:id          → PUT    [url]/api/admin/drivers/:id
- *   DELETE /api/proxy/:cId/admin/drivers/:id          → DELETE [url]/api/admin/drivers/:id
- *   POST   /api/proxy/:cId/admin/supervisors          → POST   [url]/api/admin/supervisors
- *   PUT    /api/proxy/:cId/admin/supervisors/:id      → PUT    [url]/api/admin/supervisors/:id
- *   DELETE /api/proxy/:cId/admin/supervisors/:id      → DELETE [url]/api/admin/supervisors/:id
- *   POST   /api/proxy/:cId/admin/venues               → POST   [url]/api/admin/venues
- *   PUT    /api/proxy/:cId/admin/venues/:id           → PUT    [url]/api/admin/venues/:id
- *   DELETE /api/proxy/:cId/admin/venues/:id           → DELETE [url]/api/admin/venues/:id
  */
 router.all('/:clientId/admin/*', async (req, res) => {
   try {
+    const hasAccess = await checkClientAccess(req.user, req.params.clientId);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Forbidden: You do not have access to this client site' });
+    }
+
     const client = await resolveClient(req.params.clientId, res);
     if (!client) return;
 
@@ -143,12 +252,21 @@ router.all('/:clientId/admin/*', async (req, res) => {
       return res.status(502).json({ message: authErr.message });
     }
 
-    // Preserve the /admin prefix — BenneCafe routes live at /api/admin/* not /api/*
-    const endpointPath = '/admin/' + (req.params[0] || '');
-    const targetUrl = new URL(`${client.apiUrl}/api${endpointPath}`);
+    const rawSubpath = req.params[0] || '';
+    const endpointPath = '/admin/' + rawSubpath;
+    let targetUrl = new URL(`${client.apiUrl}/api${endpointPath}`);
 
     // First attempt
-    const upstream = await fetch(targetUrl.toString(), buildFetchOptions(req, client, token));
+    let upstream = await fetch(targetUrl.toString(), buildFetchOptions(req, client, token));
+
+    // If 404 on POST /admin/bookings, also check if client API uses POST /api/bookings directly
+    if (upstream.status === 404 && req.method === 'POST' && rawSubpath === 'bookings') {
+      const fallbackUrl = new URL(`${client.apiUrl}/api/bookings`);
+      const fallbackAttempt = await fetch(fallbackUrl.toString(), buildFetchOptions(req, client, token));
+      if (fallbackAttempt.status !== 404) {
+        upstream = fallbackAttempt;
+      }
+    }
 
     // If the upstream returns 401 (token expired mid-session), re-login once and retry
     if (upstream.status === 401) {
@@ -160,8 +278,19 @@ router.all('/:clientId/admin/*', async (req, res) => {
         console.error('[Admin Proxy] Re-auth failed:', authErr.message);
         return res.status(502).json({ message: authErr.message });
       }
-      const retry = await fetch(targetUrl.toString(), buildFetchOptions(req, client, token));
-      return await pipeResponse(retry, res);
+      upstream = await fetch(targetUrl.toString(), buildFetchOptions(req, client, token));
+    }
+
+    // Log the activity if this is a mutating request and was successful
+    if (upstream.status >= 200 && upstream.status < 300) {
+      logActivity({
+        user: req.user,
+        client,
+        method: req.method,
+        path: rawSubpath,
+        body: req.body,
+        status: upstream.status,
+      });
     }
 
     return await pipeResponse(upstream, res);
@@ -181,8 +310,6 @@ function buildFetchOptions(req, client, token) {
       Authorization: `Bearer ${token}`,
     },
   };
-  // Forward query params
-  // (targetUrl already has them set before this is called)
   if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
     opts.body = JSON.stringify(req.body);
   }
@@ -202,11 +329,14 @@ async function pipeResponse(upstream, res) {
 /**
  * GET /api/proxy/:clientId/*
  * Forwards to: [client.apiUrl]/api/public-data/*
- *
- * Used for read-only dashboard data (summary, bookings, revenue, users, venues)
  */
 router.get('/:clientId/*', async (req, res) => {
   try {
+    const hasAccess = await checkClientAccess(req.user, req.params.clientId);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Forbidden: You do not have access to this client site' });
+    }
+
     const client = await resolveClient(req.params.clientId, res);
     if (!client) return;
 

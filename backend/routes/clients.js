@@ -1,6 +1,7 @@
 const express = require('express');
 const Client = require('../models/Client');
-const { requireAuth } = require('../middleware/auth');
+const OperationalManager = require('../models/OperationalManager');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -9,11 +10,27 @@ router.use(requireAuth);
 
 /**
  * GET /api/clients
- * List all clients (API keys masked for security)
+ * List all clients accessible to the current user.
+ * If Super Admin or Manager with allSites = true: returns all clients.
+ * If Manager with specific sites: returns only assigned clients.
  */
 router.get('/', async (req, res) => {
   try {
-    const clients = await Client.find().sort({ createdAt: -1 });
+    let filter = {};
+
+    if (req.user.role === 'manager') {
+      // Re-fetch manager to ensure assignedClients are current
+      const manager = await OperationalManager.findById(req.user.id);
+      if (!manager || !manager.isActive) {
+        return res.status(401).json({ message: 'Manager account not active' });
+      }
+
+      if (!manager.allSites) {
+        filter = { _id: { $in: manager.assignedClients || [] } };
+      }
+    }
+
+    const clients = await Client.find(filter).sort({ createdAt: -1 });
     const safeClients = clients.map((c) => {
       const obj = c.toJSON();
       obj.apiKey = obj.apiKey
@@ -34,10 +51,10 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /api/clients
- * Add a new client
- * Body: { name, apiUrl, apiKey, logo? }
+ * Add a new client (Super Admin only)
+ * Body: { name, apiUrl, apiKey, logo?, adminPhone?, adminPassword? }
  */
-router.post('/', async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   try {
     const { name, apiUrl, apiKey, logo, adminPhone, adminPassword } = req.body;
     if (!name || !apiUrl || !apiKey) {
@@ -57,7 +74,7 @@ router.post('/', async (req, res) => {
  * Update a client (apiKey optional — only updated if provided)
  * Body: { name?, apiUrl?, apiKey?, logo?, isActive? }
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = { ...req.body };
@@ -94,9 +111,9 @@ router.put('/:id', async (req, res) => {
 
 /**
  * DELETE /api/clients/:id
- * Remove a client
+ * Remove a client (Super Admin only)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const client = await Client.findByIdAndDelete(id);

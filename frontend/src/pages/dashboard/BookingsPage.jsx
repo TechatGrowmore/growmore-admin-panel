@@ -86,7 +86,72 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(null); // bookingId being actioned
   const [confirm, setConfirm] = useState(null); // { type, booking }
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    customerName: '',
+    customerPhone: '',
+    vehicleNumber: '',
+    vehicleType: 'car',
+    vehicleModel: '',
+    vehicleColor: '',
+    parkingSpot: '',
+  });
+  const [createBusy, setCreateBusy] = useState(false);
   const [toast, showToast] = useToast();
+
+  const handleCreateBooking = async (e) => {
+    e.preventDefault();
+    if (!selectedClient) {
+      showToast('Please select a client site first', 'error');
+      return;
+    }
+    if (!createForm.vehicleNumber.trim() || !createForm.customerPhone.trim()) {
+      showToast('Vehicle Number and Customer Phone are required', 'error');
+      return;
+    }
+
+    setCreateBusy(true);
+    try {
+      const payload = {
+        customer: {
+          name: createForm.customerName.trim() || 'Guest Customer',
+          phone: createForm.customerPhone.trim(),
+        },
+        vehicle: {
+          number: createForm.vehicleNumber.trim().toUpperCase(),
+          type: createForm.vehicleType,
+          model: createForm.vehicleModel.trim() || undefined,
+          color: createForm.vehicleColor.trim() || undefined,
+        },
+        location: {
+          parkingSpot: createForm.parkingSpot.trim() || undefined,
+        },
+      };
+
+      const res = await adminFetch(selectedClient, '/bookings', 'POST', payload);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to create booking');
+      }
+
+      showToast('Booking created successfully ✓');
+      setCreateOpen(false);
+      setCreateForm({
+        customerName: '',
+        customerPhone: '',
+        vehicleNumber: '',
+        vehicleType: 'car',
+        vehicleModel: '',
+        vehicleColor: '',
+        parkingSpot: '',
+      });
+      fetchBookings(1);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setCreateBusy(false);
+    }
+  };
 
   /* load clients */
   useEffect(() => {
@@ -200,10 +265,21 @@ export default function BookingsPage() {
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: 4 }}>Bookings</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.87rem' }}>
-            Live booking history — mark payments, delete records
+            Live booking history — mark payments, delete records, and create new bookings
           </p>
         </div>
-        <ClientSwitcher selectedClient={selectedClient} onSelect={setSelectedClient} showAll={false} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            id="create-booking-btn"
+            className="btn-primary"
+            style={{ width: 'auto', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => setCreateOpen(true)}
+            disabled={!selectedClient}
+          >
+            <span>➕</span> New Booking
+          </button>
+          <ClientSwitcher selectedClient={selectedClient} onSelect={setSelectedClient} showAll={false} />
+        </div>
       </div>
 
       {/* Table */}
@@ -365,6 +441,135 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
+
+      {/* Create Booking Modal */}
+      {createOpen && (
+        <div className="modal-overlay" onClick={() => setCreateOpen(false)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 480 }}
+          >
+            <div className="modal-header">
+              <h2>Create Valet Booking</h2>
+              <button className="modal-close" onClick={() => setCreateOpen(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handleCreateBooking}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Customer Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. John Doe"
+                      value={createForm.customerName}
+                      onChange={(e) => setCreateForm({ ...createForm, customerName: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Customer Phone *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 9876543210"
+                      value={createForm.customerPhone}
+                      onChange={(e) => setCreateForm({ ...createForm, customerPhone: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 12 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Vehicle Number *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. MH02AB1234"
+                      value={createForm.vehicleNumber}
+                      onChange={(e) => setCreateForm({ ...createForm, vehicleNumber: e.target.value })}
+                      required
+                      style={{ textTransform: 'uppercase', letterSpacing: 1 }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Vehicle Type</label>
+                    <select
+                      className="form-input"
+                      value={createForm.vehicleType}
+                      onChange={(e) => setCreateForm({ ...createForm, vehicleType: e.target.value })}
+                    >
+                      <option value="car">🚗 Car</option>
+                      <option value="suv">🚙 SUV</option>
+                      <option value="bike">🏍️ Bike</option>
+                      <option value="luxury">✨ Luxury</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Vehicle Model</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Honda City"
+                      value={createForm.vehicleModel}
+                      onChange={(e) => setCreateForm({ ...createForm, vehicleModel: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Vehicle Color</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. White"
+                      value={createForm.vehicleColor}
+                      onChange={(e) => setCreateForm({ ...createForm, vehicleColor: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label>Parking Spot / Notes</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Spot A-04 or VIP"
+                    value={createForm.parkingSpot}
+                    onChange={(e) => setCreateForm({ ...createForm, parkingSpot: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setCreateOpen(false)}
+                  disabled={createBusy}
+                >
+                  Cancel
+                </button>
+                <button
+                  id="submit-create-booking-btn"
+                  type="submit"
+                  className="btn-primary"
+                  style={{ width: 'auto', padding: '10px 24px' }}
+                  disabled={createBusy}
+                >
+                  {createBusy ? 'Creating...' : 'Create Booking'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Confirm Dialog */}
       {confirm && (

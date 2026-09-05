@@ -1,6 +1,81 @@
 import { useState, useEffect, useCallback } from 'react';
 import ClientSwitcher from '../../components/ClientSwitcher';
 
+/* ── helpers ───────────────────────────────────────────────────────────────── */
+function useToast() {
+  const [toast, setToast] = useState(null);
+  const show = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+  return [toast, show];
+}
+
+function adminFetch(clientId, path, method = 'GET', body) {
+  return fetch(`/api/proxy/${clientId}/admin${path}`, {
+    method,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+}
+
+/* ── sub-components ────────────────────────────────────────────────────────── */
+function StatusBadge({ status }) {
+  const map = {
+    parked: ['badge-info', '🚗 Parked'],
+    'recall-requested': ['badge-warning', '🔔 Recalled'],
+    'in-transit': ['badge-warning', '🏃 In Transit'],
+    arrived: ['badge-purple', '🎯 Arrived'],
+    completed: ['badge-success', '✅ Completed'],
+    cancelled: ['badge-danger', '❌ Cancelled'],
+  };
+  const [cls, label] = map[status] || ['badge-neutral', status];
+  return <span className={`badge ${cls}`}>{label}</span>;
+}
+
+function PaymentBadge({ status, method }) {
+  const paid = status === 'completed' || status === 'paid';
+  return paid ? (
+    <span className="badge badge-success">Paid ({method || 'cash'})</span>
+  ) : (
+    <span className="badge badge-warning">Unpaid</span>
+  );
+}
+
+/* ── confirm dialog ────────────────────────────────────────────────────────── */
+function ConfirmDialog({ message, onConfirm, onCancel, busy }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 400 }}
+      >
+        <div className="modal-header">
+          <h2>Confirm Action</h2>
+          <button className="modal-close" onClick={onCancel}>✕</button>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>{message}</p>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button
+            className="btn-primary"
+            style={{ width: 'auto', padding: '10px 20px', background: 'var(--danger)', border: 'none' }}
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? 'Processing...' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── main page ─────────────────────────────────────────────────────────────── */
 export default function BookingsPage() {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -9,22 +84,24 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState(null); // bookingId being actioned
+  const [confirm, setConfirm] = useState(null); // { type, booking }
+  const [toast, showToast] = useToast();
 
+  /* load clients */
   useEffect(() => {
     fetch('/api/clients', { credentials: 'include' })
-      .then((res) => res.json())
-      .then((data) => {
-        const clientList = data.clients || [];
-        setClients(clientList);
-        if (clientList.length > 0) {
-          setSelectedClient(clientList[0].id);
-        } else {
-          setLoading(false);
-        }
+      .then((r) => r.json())
+      .then((d) => {
+        const list = d.clients || [];
+        setClients(list);
+        if (list.length > 0) setSelectedClient(list[0].id);
+        else setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
 
+  /* fetch bookings */
   const fetchBookings = useCallback(
     async (page = 1) => {
       if (!selectedClient) { setLoading(false); return; }
@@ -32,17 +109,14 @@ export default function BookingsPage() {
       try {
         const params = new URLSearchParams({ page, limit: pagination.limit });
         if (statusFilter) params.set('status', statusFilter);
-
         const res = await fetch(`/api/proxy/${selectedClient}/bookings?${params}`, {
           credentials: 'include',
         });
         if (!res.ok) throw new Error('Failed to load bookings');
-
         const data = await res.json();
         setBookings(data.bookings || []);
         setPagination(data.pagination || { page: 1, limit: 25, total: 0, pages: 1 });
-      } catch (err) {
-        console.error('Bookings fetch error:', err);
+      } catch {
         setBookings([]);
       } finally {
         setLoading(false);
@@ -55,61 +129,89 @@ export default function BookingsPage() {
     if (selectedClient) fetchBookings(1);
   }, [selectedClient, statusFilter, fetchBookings]);
 
-  const filteredBookings = bookings.filter((b) => {
+  /* mark paid */
+  const handleMarkPaid = async (booking) => {
+    setActionBusy(booking._id || booking.bookingId);
+    try {
+      const res = await adminFetch(
+        selectedClient,
+        `/bookings/${booking._id}/payment`,
+        'PATCH',
+        { status: 'completed', method: booking.payment?.method || 'cash' }
+      );
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.message || 'Failed to update payment');
+      }
+      showToast('Payment marked as paid ✓');
+      fetchBookings(pagination.page);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  /* delete booking */
+  const handleDelete = async () => {
+    if (!confirm) return;
+    const { booking } = confirm;
+    setActionBusy(booking._id || booking.bookingId);
+    setConfirm(null);
+    try {
+      const res = await adminFetch(selectedClient, `/bookings/${booking._id}`, 'DELETE');
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.message || 'Failed to delete booking');
+      }
+      showToast('Booking deleted');
+      fetchBookings(pagination.page);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  /* client-side search */
+  const filtered = bookings.filter((b) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
-      (b.bookingId && b.bookingId.toLowerCase().includes(q)) ||
-      (b.customer?.name && b.customer.name.toLowerCase().includes(q)) ||
-      (b.customer?.phone && b.customer.phone.includes(q)) ||
-      (b.vehicle?.number && b.vehicle.number.toLowerCase().includes(q)) ||
-      (b.driver?.name && b.driver.name.toLowerCase().includes(q))
+      b.bookingId?.toLowerCase().includes(q) ||
+      b.customer?.name?.toLowerCase().includes(q) ||
+      b.customer?.phone?.includes(q) ||
+      b.vehicle?.number?.toLowerCase().includes(q) ||
+      b.driver?.name?.toLowerCase().includes(q)
     );
   });
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'parked': return <span className="badge badge-info">🚗 Parked</span>;
-      case 'recall-requested': return <span className="badge badge-warning">🔔 Recalled</span>;
-      case 'in-transit': return <span className="badge badge-warning">🏃 In Transit</span>;
-      case 'arrived': return <span className="badge badge-purple">🎯 Arrived</span>;
-      case 'completed': return <span className="badge badge-success">✅ Completed</span>;
-      case 'cancelled': return <span className="badge badge-danger">❌ Cancelled</span>;
-      default: return <span className="badge badge-neutral">{status}</span>;
-    }
-  };
+  const isPaid = (b) =>
+    b.payment?.status === 'completed' || b.paymentStatus === 'paid';
 
-  const getPaymentBadge = (status, method) => {
-    if (status === 'completed' || status === 'paid') {
-      return <span className="badge badge-success">Paid ({method || 'cash'})</span>;
-    }
-    return <span className="badge badge-warning">Unpaid</span>;
-  };
+  const isCash = (b) =>
+    !b.payment?.method || b.payment?.method === 'cash';
 
   return (
     <div className="page-body">
-      <div
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          marginBottom: 24, flexWrap: 'wrap', gap: 12,
-        }}
-      >
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: 4 }}>Bookings</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.87rem' }}>
-            Live booking history and active vehicles
+            Live booking history — mark payments, delete records
           </p>
         </div>
-        <ClientSwitcher
-          selectedClient={selectedClient}
-          onSelect={(id) => setSelectedClient(id)}
-          showAll={false}
-        />
+        <ClientSwitcher selectedClient={selectedClient} onSelect={setSelectedClient} showAll={false} />
       </div>
 
+      {/* Table */}
       <div className="data-table-container">
         <div className="data-table-header">
-          <h3>Bookings List {pagination.total > 0 && `(${pagination.total})`}</h3>
+          <h3>
+            Bookings List {pagination.total > 0 && `(${pagination.total})`}
+          </h3>
           <div className="data-table-filters">
             <input
               type="text"
@@ -136,11 +238,8 @@ export default function BookingsPage() {
         </div>
 
         {loading ? (
-          <div className="page-loading">
-            <div className="spinner" />
-            <span>Fetching bookings...</span>
-          </div>
-        ) : filteredBookings.length === 0 ? (
+          <div className="page-loading"><div className="spinner" /><span>Fetching bookings...</span></div>
+        ) : filtered.length === 0 ? (
           <div className="empty-state">
             <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
             <h3>No bookings found</h3>
@@ -158,15 +257,18 @@ export default function BookingsPage() {
                   <th>Status</th>
                   <th>Payment</th>
                   <th>Time</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredBookings.map((b) => {
-                  const timeFormatted = new Date(b.createdAt).toLocaleString('en-IN', {
-                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true,
-                  });
+                {filtered.map((b) => {
+                  const bid = b._id || b.bookingId;
+                  const busy = actionBusy === bid || actionBusy === b._id;
+                  const paid = isPaid(b);
+                  const cash = isCash(b);
+
                   return (
-                    <tr key={b._id || b.bookingId}>
+                    <tr key={bid}>
                       <td>
                         <strong>{b.bookingId}</strong>
                         {b.location?.parkingSpot && (
@@ -186,20 +288,55 @@ export default function BookingsPage() {
                           {b.vehicle?.number}
                         </strong>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {[b.vehicle?.color, b.vehicle?.model, b.vehicle?.type].filter(Boolean).join(' • ')}
+                          {[b.vehicle?.color, b.vehicle?.model, b.vehicle?.type]
+                            .filter(Boolean)
+                            .join(' • ')}
                         </div>
                       </td>
-                      <td>{b.driver?.name || 'Unassigned'}</td>
-                      <td>{getStatusBadge(b.status)}</td>
+                      <td>{b.driver?.name || <span style={{ color: 'var(--text-muted)' }}>Unassigned</span>}</td>
+                      <td><StatusBadge status={b.status} /></td>
                       <td>
-                        {getPaymentBadge(b.payment?.status || b.paymentStatus, b.payment?.method)}
+                        <PaymentBadge
+                          status={b.payment?.status || b.paymentStatus}
+                          method={b.payment?.method}
+                        />
                         {b.payment?.amount ? (
                           <span style={{ marginLeft: 6, fontWeight: 700, fontSize: '0.8rem' }}>
                             ₹{b.payment.amount}
                           </span>
                         ) : null}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{timeFormatted}</td>
+                      <td style={{ whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
+                        {new Date(b.createdAt).toLocaleString('en-IN', {
+                          day: '2-digit', month: 'short',
+                          hour: '2-digit', minute: '2-digit', hour12: true,
+                        })}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          {/* Mark Paid — only for unpaid cash bookings */}
+                          {!paid && cash && (
+                            <button
+                              className="btn-secondary btn-small"
+                              style={{ color: 'var(--success)', borderColor: 'rgba(16,185,129,0.3)', whiteSpace: 'nowrap' }}
+                              onClick={() => handleMarkPaid(b)}
+                              disabled={busy}
+                              title="Mark as paid (cash)"
+                            >
+                              {busy ? '...' : '💳 Mark Paid'}
+                            </button>
+                          )}
+                          {/* Delete */}
+                          <button
+                            className="btn-secondary btn-small btn-danger"
+                            onClick={() => setConfirm({ booking: b })}
+                            disabled={busy}
+                            title="Delete booking"
+                          >
+                            🗑
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -228,6 +365,23 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
+
+      {/* Confirm Dialog */}
+      {confirm && (
+        <ConfirmDialog
+          message={`Delete booking ${confirm.booking.bookingId}? This cannot be undone.`}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirm(null)}
+          busy={!!actionBusy}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="toast-container">
+          <div className={`toast toast-${toast.type}`}>{toast.msg}</div>
+        </div>
+      )}
     </div>
   );
 }

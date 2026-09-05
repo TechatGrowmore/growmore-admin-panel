@@ -198,11 +198,14 @@ export default function BookingsPage() {
   const handleMarkPaid = async (booking) => {
     setActionBusy(booking._id || booking.bookingId);
     try {
+      const method = (!booking.payment?.method || booking.payment?.method === 'pending')
+        ? 'cash'
+        : booking.payment.method;
       const res = await adminFetch(
         selectedClient,
         `/bookings/${booking._id}/payment`,
         'PATCH',
-        { paymentMethod: booking.payment?.method || 'cash', paymentStatus: 'paid' }
+        { paymentMethod: method, paymentStatus: 'paid' }
       );
       if (!res.ok) {
         const e = await res.json();
@@ -255,7 +258,7 @@ export default function BookingsPage() {
     b.payment?.status === 'completed' || b.paymentStatus === 'paid';
 
   const isCash = (b) =>
-    !b.payment?.method || b.payment?.method === 'cash';
+    !b.payment?.method || b.payment?.method === 'cash' || b.payment?.method === 'pending';
 
   return (
     <div className="page-body">

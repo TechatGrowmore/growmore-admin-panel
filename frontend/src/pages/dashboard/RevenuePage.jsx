@@ -114,7 +114,59 @@ export default function RevenuePage() {
     if (selectedClient && fromDate && toDate) fetchRevenue();
   }, [selectedClient, fromDate, toDate, fetchRevenue]);
 
-  const chartData = revenueData?.hourlyBreakdown || revenueData?.dailyBreakdown || [];
+  // Safe summary normalization
+  const summary = revenueData?.summary || {};
+  const totalRevenue = summary.revenue ?? summary.totalRevenue ?? 0;
+  const paidCount = summary.paidCount ?? summary.count ?? 0;
+  const totalBookings = summary.totalBookings ?? 0;
+  const completedBookings = summary.completedBookings ?? 0;
+
+  // Safe chart data normalization
+  const rawChartData = revenueData?.hourlyBreakdown || revenueData?.dailyBreakdown || revenueData?.timeSeries || [];
+  const chartData = rawChartData.map((d) => ({
+    ...d,
+    amount: d.amount ?? d.revenue ?? 0,
+    count: d.count ?? d.bookings ?? 0,
+    label: d.label ?? d.period ?? d.date ?? '',
+  }));
+
+  // Safe payment method breakdown normalization
+  const paymentBreakdownMap = Array.isArray(revenueData?.paymentBreakdown)
+    ? revenueData.paymentBreakdown.reduce((acc, item) => {
+        acc[item.method || item._id || 'unknown'] = {
+          amount: item.amount ?? item.revenue ?? item.total ?? 0,
+          count: item.count ?? 0,
+        };
+        return acc;
+      }, {})
+    : Array.isArray(revenueData?.byPaymentMethod)
+    ? revenueData.byPaymentMethod.reduce((acc, item) => {
+        acc[item.method || item._id || 'unknown'] = {
+          amount: item.amount ?? item.revenue ?? item.total ?? 0,
+          count: item.count ?? 0,
+        };
+        return acc;
+      }, {})
+    : (revenueData?.paymentBreakdown || {});
+
+  // Safe payment status normalization
+  const paymentStatusMap = Array.isArray(revenueData?.paymentStatus)
+    ? revenueData.paymentStatus.reduce((acc, item) => {
+        acc[item.status || item._id || 'pending'] = {
+          total: item.total ?? item.revenue ?? item.amount ?? 0,
+          count: item.count ?? 0,
+        };
+        return acc;
+      }, {})
+    : Array.isArray(revenueData?.byPaymentStatus)
+    ? revenueData.byPaymentStatus.reduce((acc, item) => {
+        acc[item.status || item._id || 'pending'] = {
+          total: item.total ?? item.revenue ?? item.amount ?? 0,
+          count: item.count ?? 0,
+        };
+        return acc;
+      }, {})
+    : (revenueData?.paymentStatus || {});
 
   return (
     <div className="page-body">
@@ -170,16 +222,16 @@ export default function RevenuePage() {
                 <span className="stat-card-label">Total Revenue</span>
                 <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>💰</div>
               </div>
-              <div className="stat-card-value">₹{(revenueData.summary?.revenue || 0).toLocaleString('en-IN')}</div>
-              <div className="stat-card-sub">{revenueData.summary?.paidCount || 0} paid transactions</div>
+              <div className="stat-card-value">₹{totalRevenue.toLocaleString('en-IN')}</div>
+              <div className="stat-card-sub">{paidCount} paid transactions</div>
             </div>
             <div className="stat-card" style={{ '--card-accent': '#FF6B35' }}>
               <div className="stat-card-header">
                 <span className="stat-card-label">Total Bookings</span>
                 <div className="stat-card-icon">📋</div>
               </div>
-              <div className="stat-card-value">{revenueData.summary?.totalBookings || 0}</div>
-              <div className="stat-card-sub">{revenueData.summary?.completedBookings || 0} completed</div>
+              <div className="stat-card-value">{totalBookings}</div>
+              <div className="stat-card-sub">{completedBookings} completed</div>
             </div>
             <div className="stat-card" style={{ '--card-accent': '#8B5CF6' }}>
               <div className="stat-card-header">
@@ -206,15 +258,15 @@ export default function RevenuePage() {
             <div className="chart-card">
               <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: 16 }}>Payment Method Split</h3>
               <div className="breakdown-list">
-                {Object.entries(revenueData.paymentBreakdown || {}).map(([method, val]) => (
+                {Object.entries(paymentBreakdownMap).map(([method, val]) => (
                   <div key={method} className="breakdown-item">
                     <div className="breakdown-item-label">
                       <span className="breakdown-item-dot" style={{ background: 'var(--accent)' }} />
                       <span style={{ textTransform: 'uppercase', fontWeight: 600 }}>{method}</span>
                     </div>
                     <div className="breakdown-item-value">
-                      ₹{val.amount.toLocaleString('en-IN')}{' '}
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({val.count} txns)</span>
+                      ₹{(val?.amount || 0).toLocaleString('en-IN')}{' '}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({val?.count || 0} txns)</span>
                     </div>
                   </div>
                 ))}

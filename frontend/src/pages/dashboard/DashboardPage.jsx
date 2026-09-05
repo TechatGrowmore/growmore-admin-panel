@@ -43,11 +43,11 @@ export default function DashboardPage() {
   const totals = Object.values(clientData).reduce(
     (acc, d) => {
       if (!d || d.error) return acc;
-      acc.todayBookings += d.today?.bookings || 0;
-      acc.todayRevenue += d.today?.revenue || 0;
-      acc.activeBookings += d.today?.active || 0;
-      acc.allTimeRevenue += d.allTime?.revenue || 0;
-      acc.allTimeBookings += d.allTime?.bookings || 0;
+      acc.todayBookings += d.today?.bookings ?? d.todayBookings ?? 0;
+      acc.todayRevenue += d.today?.revenue ?? d.todayRevenue ?? d.today?.totalRevenue ?? 0;
+      acc.activeBookings += d.today?.active ?? d.activeBookings ?? d.today?.activeBookings ?? d.active ?? 0;
+      acc.allTimeRevenue += d.allTime?.revenue ?? d.allTime?.totalRevenue ?? d.allTimeRevenue ?? d.totalRevenue ?? 0;
+      acc.allTimeBookings += d.allTime?.bookings ?? d.allTime?.totalBookings ?? d.allTimeBookings ?? d.totalBookings ?? 0;
       return acc;
     },
     { todayBookings: 0, todayRevenue: 0, activeBookings: 0, allTimeRevenue: 0, allTimeBookings: 0 }
@@ -148,22 +148,22 @@ export default function DashboardPage() {
                 {hasData ? (
                   <div className="client-card-stats">
                     <div className="client-stat">
-                      <div className="client-stat-value">{data.today?.bookings || 0}</div>
+                      <div className="client-stat-value">{data.today?.bookings ?? data.todayBookings ?? 0}</div>
                       <div className="client-stat-label">Today&apos;s Bookings</div>
                     </div>
                     <div className="client-stat">
                       <div className="client-stat-value">
-                        ₹{(data.today?.revenue || 0).toLocaleString('en-IN')}
+                        ₹{(data.today?.revenue ?? data.todayRevenue ?? data.today?.totalRevenue ?? 0).toLocaleString('en-IN')}
                       </div>
                       <div className="client-stat-label">Today&apos;s Revenue</div>
                     </div>
                     <div className="client-stat">
-                      <div className="client-stat-value">{data.today?.active || 0}</div>
+                      <div className="client-stat-value">{data.today?.active ?? data.activeBookings ?? data.today?.activeBookings ?? 0}</div>
                       <div className="client-stat-label">Active Now</div>
                     </div>
                     <div className="client-stat">
                       <div className="client-stat-value">
-                        ₹{(data.allTime?.revenue || 0).toLocaleString('en-IN')}
+                        ₹{(data.allTime?.revenue ?? data.allTimeRevenue ?? data.allTime?.totalRevenue ?? 0).toLocaleString('en-IN')}
                       </div>
                       <div className="client-stat-label">All-Time Revenue</div>
                     </div>

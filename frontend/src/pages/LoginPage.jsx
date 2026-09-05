@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import growmoreLogo from '../assets/Growmore-logo.jpg';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -63,20 +64,27 @@ export default function LoginPage() {
         <div className="logo-section">
           <div
             style={{
-              width: 56,
-              height: 56,
-              borderRadius: 14,
-              background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 12px',
-              fontSize: 24,
-              fontWeight: 800,
-              color: 'white',
+              background: '#ffffff',
+              borderRadius: 16,
+              padding: '6px 14px',
+              margin: '0 auto 16px',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.85)',
             }}
           >
-            G
+            <img
+              src={growmoreLogo}
+              alt="GrowMore Logo"
+              style={{
+                height: 64,
+                width: 'auto',
+                maxWidth: 145,
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
           </div>
           <h1>GrowMore Admin</h1>
           <p className="subtitle">Central Valet Parking Management</p>

@@ -44,7 +44,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch {}
+    } catch { }
     window.location.href = '/';
   };
 

@@ -137,7 +137,7 @@ export default function BookingsPage() {
         selectedClient,
         `/bookings/${booking._id}/payment`,
         'PATCH',
-        { status: 'completed', method: booking.payment?.method || 'cash' }
+        { paymentMethod: booking.payment?.method || 'cash', paymentStatus: 'paid' }
       );
       if (!res.ok) {
         const e = await res.json();

@@ -60,27 +60,28 @@ async function proxyRequest(req, res, targetUrl, client) {
 // ─── ADMIN PROXY (All HTTP Methods) ───────────────────────────────────────────
 /**
  * ALL /api/proxy/:clientId/admin/*
- * Forwards to: [client.apiUrl]/api/*  (strips the /admin prefix)
+ * Forwards to: [client.apiUrl]/api/admin/*  (preserves the /admin prefix)
  *
  * Used for management operations:
- *   PATCH  /api/proxy/:cId/admin/bookings/:id/payment → PATCH  [url]/api/bookings/:id/payment
- *   DELETE /api/proxy/:cId/admin/bookings/:id         → DELETE [url]/api/bookings/:id
- *   POST   /api/proxy/:cId/admin/drivers              → POST   [url]/api/drivers
- *   PUT    /api/proxy/:cId/admin/drivers/:id          → PUT    [url]/api/drivers/:id
- *   DELETE /api/proxy/:cId/admin/drivers/:id          → DELETE [url]/api/drivers/:id
- *   POST   /api/proxy/:cId/admin/supervisors          → POST   [url]/api/supervisors
- *   PUT    /api/proxy/:cId/admin/supervisors/:id      → PUT    [url]/api/supervisors/:id
- *   DELETE /api/proxy/:cId/admin/supervisors/:id      → DELETE [url]/api/supervisors/:id
- *   POST   /api/proxy/:cId/admin/venues               → POST   [url]/api/venues
- *   PUT    /api/proxy/:cId/admin/venues/:id           → PUT    [url]/api/venues/:id
- *   DELETE /api/proxy/:cId/admin/venues/:id           → DELETE [url]/api/venues/:id
+ *   PATCH  /api/proxy/:cId/admin/bookings/:id/payment → PATCH  [url]/api/admin/bookings/:id/payment
+ *   DELETE /api/proxy/:cId/admin/bookings/:id         → DELETE [url]/api/admin/bookings/:id
+ *   POST   /api/proxy/:cId/admin/drivers              → POST   [url]/api/admin/drivers
+ *   PUT    /api/proxy/:cId/admin/drivers/:id          → PUT    [url]/api/admin/drivers/:id
+ *   DELETE /api/proxy/:cId/admin/drivers/:id          → DELETE [url]/api/admin/drivers/:id
+ *   POST   /api/proxy/:cId/admin/supervisors          → POST   [url]/api/admin/supervisors
+ *   PUT    /api/proxy/:cId/admin/supervisors/:id      → PUT    [url]/api/admin/supervisors/:id
+ *   DELETE /api/proxy/:cId/admin/supervisors/:id      → DELETE [url]/api/admin/supervisors/:id
+ *   POST   /api/proxy/:cId/admin/venues               → POST   [url]/api/admin/venues
+ *   PUT    /api/proxy/:cId/admin/venues/:id           → PUT    [url]/api/admin/venues/:id
+ *   DELETE /api/proxy/:cId/admin/venues/:id           → DELETE [url]/api/admin/venues/:id
  */
 router.all('/:clientId/admin/*', async (req, res) => {
   try {
     const client = await resolveClient(req.params.clientId, res);
     if (!client) return;
 
-    const endpointPath = '/' + (req.params[0] || '');
+    // Preserve the /admin prefix — BenneCafe routes live at /api/admin/* not /api/*
+    const endpointPath = '/admin/' + (req.params[0] || '');
     const targetUrl = new URL(`${client.apiUrl}/api${endpointPath}`);
 
     return await proxyRequest(req, res, targetUrl, client);

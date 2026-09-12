@@ -1,31 +1,37 @@
 /* ═══════════════════════════════════════════════════════════════
    GrowMore Admin Panel — Design System
-   Premium dark theme with orange accent (#FF6B35)
+   Brand theme: Dark Navy + Green (#2DB84B) + Amber (#F5A623)
+   Logo colours: Navy #2B3044 | Green #2DB84B | Amber #F5A623
    ═══════════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* ─── CSS Variables ─────────────────────────────────────────── */
 :root {
-  --bg-primary: #0B0D11;
-  --bg-secondary: #12141A;
-  --bg-card: #181B22;
-  --bg-card-hover: #1E2129;
-  --bg-input: #1A1D25;
-  --bg-sidebar: #0F1117;
-  --border: #2A2D37;
-  --border-light: #363944;
-  --text-primary: #F1F3F5;
+  --bg-primary: #0D0F18;
+  --bg-secondary: #131625;
+  --bg-card: #191D2E;
+  --bg-card-hover: #1F2438;
+  --bg-input: #1B1F30;
+  --bg-sidebar: #0F1120;
+  --border: #252A3D;
+  --border-light: #323751;
+  --text-primary: #EEF0F8;
   --text-secondary: #9CA3AF;
   --text-muted: #6B7280;
-  --accent: #FF6B35;
-  --accent-hover: #FF8555;
-  --accent-glow: rgba(255, 107, 53, 0.15);
-  --accent-glow-strong: rgba(255, 107, 53, 0.3);
-  --success: #10B981;
-  --success-bg: rgba(16, 185, 129, 0.12);
-  --warning: #F59E0B;
-  --warning-bg: rgba(245, 158, 11, 0.12);
+  /* Primary accent: GrowMore green (car + "-more" text) */
+  --accent: #2DB84B;
+  --accent-hover: #3DCF5C;
+  --accent-glow: rgba(45, 184, 75, 0.15);
+  --accent-glow-strong: rgba(45, 184, 75, 0.28);
+  /* Secondary accent: GrowMore amber dot */
+  --amber: #F5A623;
+  --amber-hover: #FFBA3E;
+  --amber-glow: rgba(245, 166, 35, 0.18);
+  --success: #2DB84B;
+  --success-bg: rgba(45, 184, 75, 0.12);
+  --warning: #F5A623;
+  --warning-bg: rgba(245, 166, 35, 0.12);
   --danger: #EF4444;
   --danger-bg: rgba(239, 68, 68, 0.12);
   --info: #3B82F6;
@@ -38,8 +44,8 @@
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.24);
-  --shadow-card-hover: 0 4px 14px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.28);
+  --shadow-card-hover: 0 4px 14px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.32);
   --shadow-glow: 0 0 20px var(--accent-glow);
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -100,14 +106,14 @@ a:hover { color: var(--accent-hover); }
   width: 100%;
   max-width: 420px;
   z-index: 1;
-  box-shadow: var(--shadow-card), 0 0 40px rgba(255,107,53,0.06);
+  box-shadow: var(--shadow-card), 0 0 40px rgba(45,184,75,0.07);
 }
 
 .login-card h1 {
   font-size: 1.6rem;
   font-weight: 800;
   margin-bottom: 4px;
-  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 60%, var(--amber) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

@@ -59,7 +59,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: 'linear-gradient(135deg, #FF6B35, #FF8C42)',
+                background: 'linear-gradient(135deg, #2DB84B, #F5A623)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

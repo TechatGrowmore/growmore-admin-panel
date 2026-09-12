@@ -405,7 +405,7 @@ export default function TeamPage() {
           <div className="stats-grid" style={{ marginBottom: 24 }}>
             <StatCard accent="#3B82F6" icon={<span style={{ background: 'var(--info-bg)', color: 'var(--info)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🚗</span>} label="Drivers" value={drivers.length} sub="registered drivers" />
             <StatCard accent="#8B5CF6" icon={<span style={{ background: 'var(--purple-bg)', color: 'var(--purple)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👔</span>} label="Supervisors" value={supervisors.length} sub="shift supervisors" />
-            <StatCard accent="#FF6B35" icon={<span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👑</span>} label="Managers" value={managers.length} sub="venue managers" />
+            <StatCard accent="#F5A623" icon={<span style={{ background: 'var(--amber-glow)', color: 'var(--amber)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👑</span>} label="Managers" value={managers.length} sub="venue managers" />
           </div>
 
           {/* Tab Bar + Add Button */}

@@ -39,7 +39,7 @@ const MiniBarChart = ({ data, height = 140, color = '#8B5CF6' }) => {
           const x = i * (barW + 4);
           const y = height - bH;
           const isLast = i === data.length - 1;
-          const barColor = d.amount > 0 ? (isLast ? '#FF6B35' : color) : '#2A2D37';
+          const barColor = d.amount > 0 ? (isLast ? '#F5A623' : color) : '#252A3D';
           return (
             <g
               key={i}
@@ -217,7 +217,7 @@ export default function RevenuePage() {
       ) : (
         <>
           <div className="stats-grid">
-            <div className="stat-card" style={{ '--card-accent': '#10B981' }}>
+            <div className="stat-card" style={{ '--card-accent': '#2DB84B' }}>
               <div className="stat-card-header">
                 <span className="stat-card-label">Total Revenue</span>
                 <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>💰</div>
@@ -225,7 +225,7 @@ export default function RevenuePage() {
               <div className="stat-card-value">₹{totalRevenue.toLocaleString('en-IN')}</div>
               <div className="stat-card-sub">{paidCount} paid transactions</div>
             </div>
-            <div className="stat-card" style={{ '--card-accent': '#FF6B35' }}>
+            <div className="stat-card" style={{ '--card-accent': '#F5A623' }}>
               <div className="stat-card-header">
                 <span className="stat-card-label">Total Bookings</span>
                 <div className="stat-card-icon">📋</div>
@@ -251,7 +251,7 @@ export default function RevenuePage() {
             <div className="chart-card-header">
               <h3>Revenue Trend {revenueData.hourlyBreakdown ? '(Hourly)' : '(Daily)'}</h3>
             </div>
-            <MiniBarChart data={chartData} height={160} color="#FF6B35" />
+            <MiniBarChart data={chartData} height={160} color="#2DB84B" />
           </div>
 
           <div className="two-col">

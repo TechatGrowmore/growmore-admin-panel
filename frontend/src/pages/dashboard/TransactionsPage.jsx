@@ -98,7 +98,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="stat-card" style={{ '--card-accent': '#10B981', marginBottom: 24 }}>
+      <div className="stat-card" style={{ '--card-accent': '#2DB84B', marginBottom: 24 }}>
         <div className="stat-card-header">
           <span className="stat-card-label">Selected Period Total</span>
           <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>💳</div>

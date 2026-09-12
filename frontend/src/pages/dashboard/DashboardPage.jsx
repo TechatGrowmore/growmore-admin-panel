@@ -73,10 +73,10 @@ export default function DashboardPage() {
 
       {/* Global Stats */}
       <div className="stats-grid">
-        <div className="stat-card" style={{ '--card-accent': '#FF6B35' }}>
+        <div className="stat-card" style={{ '--card-accent': '#F5A623' }}>
           <div className="stat-card-header">
             <span className="stat-card-label">Today&apos;s Bookings</span>
-            <div className="stat-card-icon">📋</div>
+            <div className="stat-card-icon" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>📋</div>
           </div>
           <div className="stat-card-value">{totals.todayBookings}</div>
           <div className="stat-card-sub">
@@ -84,7 +84,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="stat-card" style={{ '--card-accent': '#10B981' }}>
+        <div className="stat-card" style={{ '--card-accent': '#2DB84B' }}>
           <div className="stat-card-header">
             <span className="stat-card-label">Today&apos;s Revenue</span>
             <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>

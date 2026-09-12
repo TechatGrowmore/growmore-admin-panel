@@ -1,51 +1,50 @@
 /* ═══════════════════════════════════════════════════════════════
    GrowMore Admin Panel — Design System
-   Brand theme: Dark Navy + Green (#2DB84B) + Amber (#F5A623)
-   Logo colours: Navy #2B3044 | Green #2DB84B | Amber #F5A623
+   Light theme — Brand colours: Green #2DB84B | Amber #F5A623 | Navy #2B3044
    ═══════════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* ─── CSS Variables ─────────────────────────────────────────── */
 :root {
-  --bg-primary: #0D0F18;
-  --bg-secondary: #131625;
-  --bg-card: #191D2E;
-  --bg-card-hover: #1F2438;
-  --bg-input: #1B1F30;
-  --bg-sidebar: #0F1120;
-  --border: #252A3D;
-  --border-light: #323751;
-  --text-primary: #EEF0F8;
-  --text-secondary: #9CA3AF;
-  --text-muted: #6B7280;
+  --bg-primary: #F4F6F9;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F0F4F8;
+  --bg-input: #F7F9FC;
+  --bg-sidebar: #FFFFFF;
+  --border: #E2E8F0;
+  --border-light: #CBD5E1;
+  --text-primary: #2B3044;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
   /* Primary accent: GrowMore green (car + "-more" text) */
-  --accent: #2DB84B;
-  --accent-hover: #3DCF5C;
-  --accent-glow: rgba(45, 184, 75, 0.15);
-  --accent-glow-strong: rgba(45, 184, 75, 0.28);
+  --accent: #25A33F;
+  --accent-hover: #1E8F35;
+  --accent-glow: rgba(37, 163, 63, 0.12);
+  --accent-glow-strong: rgba(37, 163, 63, 0.22);
   /* Secondary accent: GrowMore amber dot */
-  --amber: #F5A623;
-  --amber-hover: #FFBA3E;
-  --amber-glow: rgba(245, 166, 35, 0.18);
-  --success: #2DB84B;
-  --success-bg: rgba(45, 184, 75, 0.12);
-  --warning: #F5A623;
-  --warning-bg: rgba(245, 166, 35, 0.12);
-  --danger: #EF4444;
-  --danger-bg: rgba(239, 68, 68, 0.12);
-  --info: #3B82F6;
-  --info-bg: rgba(59, 130, 246, 0.12);
-  --purple: #8B5CF6;
-  --purple-bg: rgba(139, 92, 246, 0.12);
+  --amber: #E8960E;
+  --amber-hover: #D4870A;
+  --amber-glow: rgba(232, 150, 14, 0.14);
+  --success: #25A33F;
+  --success-bg: rgba(37, 163, 63, 0.10);
+  --warning: #E8960E;
+  --warning-bg: rgba(232, 150, 14, 0.10);
+  --danger: #DC2626;
+  --danger-bg: rgba(220, 38, 38, 0.08);
+  --info: #2563EB;
+  --info-bg: rgba(37, 99, 235, 0.08);
+  --purple: #7C3AED;
+  --purple-bg: rgba(124, 58, 237, 0.08);
   --sidebar-width: 260px;
   --header-height: 64px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.28);
-  --shadow-card-hover: 0 4px 14px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.32);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-card-hover: 0 6px 20px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
   --shadow-glow: 0 0 20px var(--accent-glow);
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -947,9 +946,9 @@ a:hover { color: var(--accent-hover); }
   max-width: 350px;
 }
 
-.toast-success { background: #065F46; color: #A7F3D0; border: 1px solid #10B981; }
-.toast-error { background: #7F1D1D; color: #FCA5A5; border: 1px solid #EF4444; }
-.toast-info { background: #1E3A5F; color: #93C5FD; border: 1px solid #3B82F6; }
+.toast-success { background: #ECFDF5; color: #166534; border: 1px solid #86EFAC; }
+.toast-error { background: #FEF2F2; color: #991B1B; border: 1px solid #FCA5A5; }
+.toast-info { background: #EFF6FF; color: #1E40AF; border: 1px solid #93C5FD; }
 
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
@@ -1252,7 +1251,7 @@ a:hover { color: var(--accent-hover); }
   padding: 14px;
   font-family: monospace;
   font-size: 0.8rem;
-  color: #a5b4fc;
+  color: #3730a3;
   max-height: 250px;
   overflow: auto;
   white-space: pre-wrap;

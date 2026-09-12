@@ -39,7 +39,7 @@ const MiniBarChart = ({ data, height = 140, color = '#8B5CF6' }) => {
           const x = i * (barW + 4);
           const y = height - bH;
           const isLast = i === data.length - 1;
-          const barColor = d.amount > 0 ? (isLast ? '#F5A623' : color) : '#252A3D';
+          const barColor = d.amount > 0 ? (isLast ? '#E8960E' : color) : '#E2E8F0';
           return (
             <g
               key={i}

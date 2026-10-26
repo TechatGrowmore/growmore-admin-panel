@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Icon from '../../components/Icon';
 
 export default function DashboardPage() {
   const [clients, setClients] = useState([]);
@@ -76,7 +77,7 @@ export default function DashboardPage() {
         <div className="stat-card" style={{ '--card-accent': '#F5A623' }}>
           <div className="stat-card-header">
             <span className="stat-card-label">Today&apos;s Bookings</span>
-            <div className="stat-card-icon" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>📋</div>
+            <div className="stat-card-icon" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}><Icon name="clipboard" size={18} /></div>
           </div>
           <div className="stat-card-value">{totals.todayBookings}</div>
           <div className="stat-card-sub">
@@ -88,7 +89,7 @@ export default function DashboardPage() {
           <div className="stat-card-header">
             <span className="stat-card-label">Today&apos;s Revenue</span>
             <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
-              💰
+              <Icon name="wallet" size={18} />
             </div>
           </div>
           <div className="stat-card-value">₹{totals.todayRevenue.toLocaleString('en-IN')}</div>
@@ -99,7 +100,7 @@ export default function DashboardPage() {
           <div className="stat-card-header">
             <span className="stat-card-label">Active Now</span>
             <div className="stat-card-icon" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>
-              🚗
+              <Icon name="car" size={18} />
             </div>
           </div>
           <div className="stat-card-value">{totals.activeBookings}</div>
@@ -110,7 +111,7 @@ export default function DashboardPage() {
           <div className="stat-card-header">
             <span className="stat-card-label">All-Time Revenue</span>
             <div className="stat-card-icon" style={{ background: 'var(--purple-bg)', color: 'var(--purple)' }}>
-              📈
+              <Icon name="trending" size={18} />
             </div>
           </div>
           <div className="stat-card-value">₹{totals.allTimeRevenue.toLocaleString('en-IN')}</div>
@@ -125,7 +126,7 @@ export default function DashboardPage() {
 
       {clients.length === 0 ? (
         <div className="empty-state">
-          <div style={{ fontSize: 64, marginBottom: 12 }}>🏢</div>
+          <div className="empty-icon"><Icon name="building" size={48} /></div>
           <h3>No clients connected yet</h3>
           <p>Go to Clients page to add your first valet parking client</p>
         </div>
@@ -177,7 +178,7 @@ export default function DashboardPage() {
                       fontSize: '0.85rem',
                     }}
                   >
-                    ⚠️ Unable to connect — check API key &amp; URL
+                    <Icon name="alert" size={16} style={{ verticalAlign: '-3px' }} /> Unable to connect — check API key &amp; URL
                   </div>
                 )}
               </div>

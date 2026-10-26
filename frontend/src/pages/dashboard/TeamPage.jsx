@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import ClientSwitcher from '../../components/ClientSwitcher';
 import ManageModal from '../../components/ManageModal';
+import Icon from '../../components/Icon';
 
 /* ── helpers ───────────────────────────────────────────────────────────────── */
 function useToast() {
@@ -154,7 +155,7 @@ function StaffTable({ staff, roleBadge, onEdit, onDelete, busyId, extraColumns =
   if (staff.length === 0) {
     return (
       <div className="empty-state" style={{ padding: '40px 20px' }}>
-        <div style={{ fontSize: 40, marginBottom: 8 }}>👤</div>
+        <div className="empty-icon"><Icon name="user" size={40} /></div>
         <h3>No records yet</h3>
         <p>Use the Add button above to create one</p>
       </div>
@@ -210,14 +211,14 @@ function StaffTable({ staff, roleBadge, onEdit, onDelete, busyId, extraColumns =
                     onClick={() => onEdit(m)}
                     disabled={busyId === m._id}
                   >
-                    ✏️ Edit
+                    <Icon name="edit" size={13} /> Edit
                   </button>
                   <button
                     className="btn-secondary btn-small btn-danger"
                     onClick={() => onDelete(m)}
                     disabled={busyId === m._id}
                   >
-                    🗑
+                    <Icon name="trash" size={14} />
                   </button>
                 </div>
               </td>
@@ -372,9 +373,9 @@ export default function TeamPage() {
   const managers = teamData?.managers || [];
 
   const tabs = [
-    { key: 'driver', label: `Drivers (${drivers.length})`, icon: '🚗' },
-    { key: 'supervisor', label: `Supervisors (${supervisors.length})`, icon: '👔' },
-    { key: 'manager', label: `Managers (${managers.length})`, icon: '👑' },
+    { key: 'driver', label: `Drivers (${drivers.length})`, icon: 'car' },
+    { key: 'supervisor', label: `Supervisors (${supervisors.length})`, icon: 'briefcase' },
+    { key: 'manager', label: `Managers (${managers.length})`, icon: 'crown' },
   ];
 
   return (
@@ -395,7 +396,7 @@ export default function TeamPage() {
         <div className="page-loading"><div className="spinner" /><span>Loading staff...</span></div>
       ) : !teamData ? (
         <div className="empty-state">
-          <div style={{ fontSize: 48, marginBottom: 12 }}>👥</div>
+          <div className="empty-icon"><Icon name="users" size={48} /></div>
           <h3>No team data available</h3>
           <p>Select a valid client to view staff members</p>
         </div>
@@ -403,9 +404,9 @@ export default function TeamPage() {
         <>
           {/* Stats */}
           <div className="stats-grid" style={{ marginBottom: 24 }}>
-            <StatCard accent="#3B82F6" icon={<span style={{ background: 'var(--info-bg)', color: 'var(--info)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🚗</span>} label="Drivers" value={drivers.length} sub="registered drivers" />
-            <StatCard accent="#8B5CF6" icon={<span style={{ background: 'var(--purple-bg)', color: 'var(--purple)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👔</span>} label="Supervisors" value={supervisors.length} sub="shift supervisors" />
-            <StatCard accent="#F5A623" icon={<span style={{ background: 'var(--amber-glow)', color: 'var(--amber)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👑</span>} label="Managers" value={managers.length} sub="venue managers" />
+            <StatCard accent="#3B82F6" icon={<span style={{ background: 'var(--info-bg)', color: 'var(--info)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="car" size={18} /></span>} label="Drivers" value={drivers.length} sub="registered drivers" />
+            <StatCard accent="#8B5CF6" icon={<span style={{ background: 'var(--purple-bg)', color: 'var(--purple)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="briefcase" size={18} /></span>} label="Supervisors" value={supervisors.length} sub="shift supervisors" />
+            <StatCard accent="#F5A623" icon={<span style={{ background: 'var(--amber-glow)', color: 'var(--amber)', width: 36, height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="crown" size={18} /></span>} label="Managers" value={managers.length} sub="venue managers" />
           </div>
 
           {/* Tab Bar + Add Button */}
@@ -419,7 +420,7 @@ export default function TeamPage() {
                     onClick={() => setActiveTab(t.key)}
                     style={{ padding: '8px 18px' }}
                   >
-                    {t.icon} {t.label}
+                    <Icon name={t.icon} size={15} /> {t.label}
                   </button>
                 ))}
               </div>

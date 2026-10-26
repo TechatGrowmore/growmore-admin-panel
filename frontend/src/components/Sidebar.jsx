@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Icon from './Icon';
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
@@ -12,21 +13,21 @@ export default function Sidebar({ isOpen, onClose }) {
   const managementItems = [];
   if (isSuperAdmin) {
     managementItems.push(
-      { label: 'Clients', path: '/dashboard/clients', icon: '🏢' },
-      { label: 'Managers', path: '/dashboard/managers', icon: '👔' },
-      { label: 'Activity Logs', path: '/dashboard/logs', icon: '📜' }
+      { label: 'Clients', path: '/dashboard/clients', icon: 'building' },
+      { label: 'Managers', path: '/dashboard/managers', icon: 'briefcase' },
+      { label: 'Activity Logs', path: '/dashboard/logs', icon: 'fileText' }
     );
   }
   managementItems.push(
-    { label: 'Bookings', path: '/dashboard/bookings', icon: '📋' },
-    { label: 'Revenue', path: '/dashboard/revenue', icon: '💰' },
-    { label: 'Transactions', path: '/dashboard/transactions', icon: '💳' }
+    { label: 'Bookings', path: '/dashboard/bookings', icon: 'clipboard' },
+    { label: 'Revenue', path: '/dashboard/revenue', icon: 'wallet' },
+    { label: 'Transactions', path: '/dashboard/transactions', icon: 'card' }
   );
 
   const navItems = [
     {
       section: 'Overview',
-      items: [{ label: 'Dashboard', path: '/dashboard', icon: '📊' }],
+      items: [{ label: 'Dashboard', path: '/dashboard', icon: 'dashboard' }],
     },
     {
       section: 'Management',
@@ -35,8 +36,8 @@ export default function Sidebar({ isOpen, onClose }) {
     {
       section: 'Operations',
       items: [
-        { label: 'Team', path: '/dashboard/team', icon: '👥' },
-        { label: 'Venues', path: '/dashboard/venues', icon: '📍' },
+        { label: 'Team', path: '/dashboard/team', icon: 'users' },
+        { label: 'Venues', path: '/dashboard/venues', icon: 'pin' },
       ],
     },
   ];
@@ -54,22 +55,7 @@ export default function Sidebar({ isOpen, onClose }) {
       <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-brand">
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #2DB84B, #F5A623)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 16,
-                fontWeight: 800,
-                color: 'white',
-              }}
-            >
-              G
-            </div>
+            <div className="brand-mark brand-mark-lg">G</div>
             <div>
               <h2>GrowMore</h2>
               <span>Admin Panel</span>
@@ -86,7 +72,8 @@ export default function Sidebar({ isOpen, onClose }) {
             <div className="sidebar-user-info">
               <div className="sidebar-user-name">{user.name || user.username}</div>
               <div className="sidebar-user-role">
-                {isSuperAdmin ? '🛡️ Super Admin' : '👔 Operations Manager'}
+                <Icon name={isSuperAdmin ? 'shield' : 'briefcase'} size={11} />{' '}
+                {isSuperAdmin ? 'Super Admin' : 'Operations Manager'}
               </div>
             </div>
           </div>
@@ -105,7 +92,7 @@ export default function Sidebar({ isOpen, onClose }) {
                     onClose?.();
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>{item.icon}</span>
+                  <Icon name={item.icon} size={18} />
                   {item.label}
                 </button>
               ))}
@@ -115,7 +102,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
         <div className="sidebar-footer">
           <button className="sidebar-link" onClick={handleLogout}>
-            <span style={{ fontSize: 16 }}>🚪</span>
+            <Icon name="logout" size={18} />
             Logout
           </button>
         </div>

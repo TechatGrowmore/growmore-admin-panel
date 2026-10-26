@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import ClientSwitcher from '../../components/ClientSwitcher';
+import Icon from '../../components/Icon';
 
 export default function TransactionsPage() {
   const [selectedClient, setSelectedClient] = useState(null);
@@ -101,7 +102,7 @@ export default function TransactionsPage() {
       <div className="stat-card" style={{ '--card-accent': '#2DB84B', marginBottom: 24 }}>
         <div className="stat-card-header">
           <span className="stat-card-label">Selected Period Total</span>
-          <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>💳</div>
+          <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}><Icon name="card" size={18} /></div>
         </div>
         <div className="stat-card-value">₹{totalCollected.toLocaleString('en-IN')}</div>
         <div className="stat-card-sub">
@@ -113,7 +114,7 @@ export default function TransactionsPage() {
         <div className="page-loading"><div className="spinner" /><span>Loading transactions...</span></div>
       ) : Object.keys(groupedTransactions).length === 0 ? (
         <div className="empty-state">
-          <div style={{ fontSize: 48, marginBottom: 12 }}>💳</div>
+          <div className="empty-icon"><Icon name="card" size={48} /></div>
           <h3>No transactions found</h3>
           <p>Try expanding the date range or clearing filters</p>
         </div>

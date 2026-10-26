@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import ClientSwitcher from '../../components/ClientSwitcher';
+import Icon from '../../components/Icon';
 
 /* ── helpers ───────────────────────────────────────────────────────────────── */
 function useToast() {
@@ -23,15 +24,20 @@ function adminFetch(clientId, path, method = 'GET', body) {
 /* ── sub-components ────────────────────────────────────────────────────────── */
 function StatusBadge({ status }) {
   const map = {
-    parked: ['badge-info', '🚗 Parked'],
-    'recall-requested': ['badge-warning', '🔔 Recalled'],
-    'in-transit': ['badge-warning', '🏃 In Transit'],
-    arrived: ['badge-purple', '🎯 Arrived'],
-    completed: ['badge-success', '✅ Completed'],
-    cancelled: ['badge-danger', '❌ Cancelled'],
+    parked: ['badge-info', 'Parked', 'car'],
+    'recall-requested': ['badge-warning', 'Recalled', 'bell'],
+    'in-transit': ['badge-warning', 'In Transit', 'arrowRight'],
+    arrived: ['badge-purple', 'Arrived', 'pin'],
+    completed: ['badge-success', 'Completed', 'checkCircle'],
+    cancelled: ['badge-danger', 'Cancelled', 'xCircle'],
   };
-  const [cls, label] = map[status] || ['badge-neutral', status];
-  return <span className={`badge ${cls}`}>{label}</span>;
+  const [cls, label, icon] = map[status] || ['badge-neutral', status];
+  return (
+    <span className={`badge ${cls}`}>
+      {icon && <Icon name={icon} size={11} />}
+      {label}
+    </span>
+  );
 }
 
 function PaymentBadge({ status, method }) {
@@ -279,7 +285,7 @@ export default function BookingsPage() {
             onClick={() => setCreateOpen(true)}
             disabled={!selectedClient}
           >
-            <span>➕</span> New Booking
+            <Icon name="plus" size={15} /> New Booking
           </button>
           <ClientSwitcher selectedClient={selectedClient} onSelect={setSelectedClient} showAll={false} />
         </div>
@@ -320,7 +326,7 @@ export default function BookingsPage() {
           <div className="page-loading"><div className="spinner" /><span>Fetching bookings...</span></div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+            <div className="empty-icon"><Icon name="clipboard" size={48} /></div>
             <h3>No bookings found</h3>
             <p>Try clearing filters or selecting another client</p>
           </div>
@@ -402,7 +408,7 @@ export default function BookingsPage() {
                               disabled={busy}
                               title="Mark as paid (cash)"
                             >
-                              {busy ? '...' : '💳 Mark Paid'}
+                              {busy ? '...' : <><Icon name="card" size={13} /> Mark Paid</>}
                             </button>
                           )}
                           {/* Delete */}
@@ -412,7 +418,7 @@ export default function BookingsPage() {
                             disabled={busy}
                             title="Delete booking"
                           >
-                            🗑
+                            <Icon name="trash" size={14} />
                           </button>
                         </div>
                       </td>
@@ -506,10 +512,10 @@ export default function BookingsPage() {
                       value={createForm.vehicleType}
                       onChange={(e) => setCreateForm({ ...createForm, vehicleType: e.target.value })}
                     >
-                      <option value="car">🚗 Car</option>
-                      <option value="suv">🚙 SUV</option>
-                      <option value="bike">🏍️ Bike</option>
-                      <option value="luxury">✨ Luxury</option>
+                      <option value="car">Car</option>
+                      <option value="suv">SUV</option>
+                      <option value="bike">Bike</option>
+                      <option value="luxury">Luxury</option>
                     </select>
                   </div>
                 </div>

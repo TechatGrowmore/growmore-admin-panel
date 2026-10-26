@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Icon from '../../components/Icon';
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([]);
@@ -161,7 +162,7 @@ export default function ClientsPage() {
 
       {clients.length === 0 ? (
         <div className="empty-state">
-          <div style={{ fontSize: 64, marginBottom: 12 }}>🏢</div>
+          <div className="empty-icon"><Icon name="building" size={48} /></div>
           <h3>No clients yet</h3>
           <p>Add your first valet parking client to get started</p>
         </div>
@@ -227,19 +228,19 @@ export default function ClientsPage() {
                           onClick={() => handleTestConnection(client)}
                           disabled={testing === client.id}
                         >
-                          {testing === client.id ? '...' : '🔌 Test'}
+                          {testing === client.id ? '...' : <><Icon name="plug" size={13} /> Test</>}
                         </button>
                         <button
                           className="btn-secondary btn-small"
                           onClick={() => openEdit(client)}
                         >
-                          ✏️ Edit
+                          <Icon name="edit" size={13} /> Edit
                         </button>
                         <button
                           className="btn-secondary btn-small btn-danger"
                           onClick={() => handleDelete(client.id)}
                         >
-                          🗑
+                          <Icon name="trash" size={14} />
                         </button>
                       </div>
                     </td>
@@ -296,7 +297,7 @@ export default function ClientsPage() {
               </div>
               <div style={{ borderTop: '1px solid var(--border)', margin: '16px 0', paddingTop: 16 }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}>
-                  🔐 <strong>Admin Credentials</strong> — used by the proxy to authenticate admin operations (mark paid, delete, manage team).
+                  <Icon name="lock" size={14} style={{ verticalAlign: '-2px' }} /> <strong>Admin Credentials</strong> — used by the proxy to authenticate admin operations (mark paid, delete, manage team).
                 </p>
                 <div className="form-group">
                   <label>Admin Phone</label>

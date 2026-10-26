@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import ClientSwitcher from '../../components/ClientSwitcher';
+import Icon from '../../components/Icon';
 
 const MiniBarChart = ({ data, height = 140, color = '#8B5CF6' }) => {
   const [tooltip, setTooltip] = useState(null);
@@ -210,7 +211,7 @@ export default function RevenuePage() {
         <div className="page-loading"><div className="spinner" /><span>Fetching revenue analytics...</span></div>
       ) : !revenueData ? (
         <div className="empty-state">
-          <div style={{ fontSize: 48, marginBottom: 12 }}>💰</div>
+          <div className="empty-icon"><Icon name="wallet" size={48} /></div>
           <h3>No revenue data available</h3>
           <p>Select a valid client or adjust the date range</p>
         </div>
@@ -220,7 +221,7 @@ export default function RevenuePage() {
             <div className="stat-card" style={{ '--card-accent': '#2DB84B' }}>
               <div className="stat-card-header">
                 <span className="stat-card-label">Total Revenue</span>
-                <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>💰</div>
+                <div className="stat-card-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}><Icon name="wallet" size={18} /></div>
               </div>
               <div className="stat-card-value">₹{totalRevenue.toLocaleString('en-IN')}</div>
               <div className="stat-card-sub">{paidCount} paid transactions</div>
@@ -228,7 +229,7 @@ export default function RevenuePage() {
             <div className="stat-card" style={{ '--card-accent': '#F5A623' }}>
               <div className="stat-card-header">
                 <span className="stat-card-label">Total Bookings</span>
-                <div className="stat-card-icon">📋</div>
+                <div className="stat-card-icon"><Icon name="clipboard" size={18} /></div>
               </div>
               <div className="stat-card-value">{totalBookings}</div>
               <div className="stat-card-sub">{completedBookings} completed</div>
@@ -236,7 +237,7 @@ export default function RevenuePage() {
             <div className="stat-card" style={{ '--card-accent': '#8B5CF6' }}>
               <div className="stat-card-header">
                 <span className="stat-card-label">Avg. Revenue / Booking</span>
-                <div className="stat-card-icon" style={{ background: 'var(--purple-bg)', color: 'var(--purple)' }}>📊</div>
+                <div className="stat-card-icon" style={{ background: 'var(--purple-bg)', color: 'var(--purple)' }}><Icon name="dashboard" size={18} /></div>
               </div>
               <div className="stat-card-value">
                 ₹{revenueData.summary?.paidCount > 0

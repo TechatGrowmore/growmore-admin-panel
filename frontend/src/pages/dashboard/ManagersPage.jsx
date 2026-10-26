@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import Icon from '../../components/Icon';
 
 function useToast() {
   const [toast, setToast] = useState(null);
@@ -271,7 +272,7 @@ export default function ManagersPage() {
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <button id="add-manager-btn" className="btn-primary" onClick={handleOpenAdd}>
-            <span>➕</span> Add Operational Manager
+            <Icon name="plus" size={15} /> Add Operational Manager
           </button>
         </div>
       </div>
@@ -304,7 +305,7 @@ export default function ManagersPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <div style={{ fontSize: 48, marginBottom: 12 }}>👔</div>
+            <div className="empty-icon"><Icon name="briefcase" size={48} /></div>
             <h3>No Operational Managers found</h3>
             <p>Add your first manager account to delegate operational control.</p>
             <button className="btn-primary" style={{ marginTop: 12 }} onClick={handleOpenAdd}>
@@ -370,20 +371,20 @@ export default function ManagersPage() {
 
                     <td>
                       {m.allSites ? (
-                        <span className="badge badge-success">🌐 All Client Sites</span>
+                        <span className="badge badge-success"><Icon name="globe" size={12} /> All Client Sites</span>
                       ) : Array.isArray(m.assignedClients) && m.assignedClients.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {m.assignedClients.map((client) => {
                             const name = typeof client === 'object' ? client.name : 'Site';
                             return (
                               <span key={client.id || client._id || client} className="badge badge-info">
-                                🏢 {name}
+                                <Icon name="building" size={12} /> {name}
                               </span>
                             );
                           })}
                         </div>
                       ) : (
-                        <span className="badge badge-warning">⚠️ No Sites Assigned</span>
+                        <span className="badge badge-warning"><Icon name="alert" size={12} /> No Sites Assigned</span>
                       )}
                     </td>
 
@@ -418,7 +419,7 @@ export default function ManagersPage() {
                           style={{ padding: '5px 10px', fontSize: '0.78rem' }}
                           onClick={() => handleOpenEdit(m)}
                         >
-                          ✏️ Edit
+                          <Icon name="edit" size={13} /> Edit
                         </button>
                         <button
                           className="btn-secondary"
@@ -430,7 +431,7 @@ export default function ManagersPage() {
                           }}
                           onClick={() => setDeleteConfirm(m)}
                         >
-                          🗑️ Delete
+                          <Icon name="trash" size={13} /> Delete
                         </button>
                       </div>
                     </td>
@@ -547,7 +548,7 @@ export default function ManagersPage() {
                       style={{ accentColor: 'var(--accent)', width: 18, height: 18, cursor: 'pointer' }}
                     />
                     <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                      🌐 Grant Access to All Current & Future Sites
+                      <Icon name="globe" size={14} /> Grant Access to All Current & Future Sites
                     </div>
                   </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import growmoreLogo from '../assets/Growmore-logo.jpg';
+import Icon from '../components/Icon';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -101,7 +102,7 @@ export default function LoginPage() {
               setError('');
             }}
           >
-            <span>🛡️</span>
+            <Icon name="shield" size={16} />
             Super Admin
           </button>
           <button
@@ -113,7 +114,7 @@ export default function LoginPage() {
               setError('');
             }}
           >
-            <span>👔</span>
+            <Icon name="briefcase" size={16} />
             Operations Manager
           </button>
         </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import ClientSwitcher from '../../components/ClientSwitcher';
 import ManageModal from '../../components/ManageModal';
+import Icon from '../../components/Icon';
 
 /* ── helpers ───────────────────────────────────────────────────────────────── */
 function useToast() {
@@ -268,7 +269,7 @@ export default function VenuesPage() {
         <div className="page-loading"><div className="spinner" /><span>Loading venues...</span></div>
       ) : venues.length === 0 ? (
         <div className="empty-state">
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📍</div>
+          <div className="empty-icon"><Icon name="pin" size={48} /></div>
           <h3>No venues configured</h3>
           <p>Add your first parking venue using the button above</p>
         </div>
@@ -294,7 +295,7 @@ export default function VenuesPage() {
                 {/* Name + meta */}
                 <div style={{ marginBottom: 16, paddingRight: 80 }}>
                   <div style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 4 }}>
-                    📍 {v.name}
+                    <Icon name="pin" size={14} /> {v.name}
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     {v.supervisor?.name ? `Supervisor: ${v.supervisor.name}` : 'No supervisor assigned'}
@@ -363,14 +364,14 @@ export default function VenuesPage() {
                     onClick={() => openEdit(v)}
                     disabled={busyId === v._id}
                   >
-                    ✏️ Edit Venue
+                    <Icon name="edit" size={13} /> Edit Venue
                   </button>
                   <button
                     className="btn-secondary btn-small btn-danger"
                     onClick={() => setConfirm(v)}
                     disabled={busyId === v._id}
                   >
-                    🗑
+                    <Icon name="trash" size={14} />
                   </button>
                 </div>
               </div>

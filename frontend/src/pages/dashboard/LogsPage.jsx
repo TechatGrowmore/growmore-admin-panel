@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import Icon from '../../components/Icon';
 
 function formatRelativeTime(dateString) {
   if (!dateString) return '—';
@@ -20,15 +21,15 @@ function formatRelativeTime(dateString) {
 function ActionBadge({ action }) {
   const act = (action || '').toUpperCase();
   if (act.includes('DELETE') || act.includes('REMOVE')) {
-    return <span className="log-action-badge log-action-delete">🗑️ {action}</span>;
+    return <span className="log-action-badge log-action-delete"><Icon name="trash" size={12} /> {action}</span>;
   }
   if (act.includes('CREATE') || act.includes('ADD')) {
-    return <span className="log-action-badge log-action-create">➕ {action}</span>;
+    return <span className="log-action-badge log-action-create"><Icon name="plus" size={12} /> {action}</span>;
   }
   if (act.includes('UPDATE') || act.includes('PAYMENT') || act.includes('EDIT')) {
-    return <span className="log-action-badge log-action-update">✏️ {action}</span>;
+    return <span className="log-action-badge log-action-update"><Icon name="edit" size={12} /> {action}</span>;
   }
-  return <span className="log-action-badge log-action-other">⚡ {action}</span>;
+  return <span className="log-action-badge log-action-other"><Icon name="zap" size={12} /> {action}</span>;
 }
 
 export default function LogsPage() {
@@ -126,7 +127,7 @@ export default function LogsPage() {
           disabled={loading}
           style={{ display: 'flex', alignItems: 'center', gap: 6 }}
         >
-          <span>🔄</span> Refresh Logs
+          <Icon name="refresh" size={14} /> Refresh Logs
         </button>
       </div>
 
@@ -187,10 +188,10 @@ export default function LogsPage() {
           style={{ width: 150 }}
         >
           <option value="">All Entities</option>
-          <option value="Booking">📋 Bookings</option>
-          <option value="Driver">🚗 Drivers</option>
-          <option value="Supervisor">👔 Supervisors</option>
-          <option value="Venue">📍 Venues</option>
+          <option value="Booking">Bookings</option>
+          <option value="Driver">Drivers</option>
+          <option value="Supervisor">Supervisors</option>
+          <option value="Venue">Venues</option>
         </select>
 
         {(filterManager || filterClient || filterEntity || search) && (
@@ -213,7 +214,7 @@ export default function LogsPage() {
           </div>
         ) : logs.length === 0 ? (
           <div className="empty-state">
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📜</div>
+            <div className="empty-icon"><Icon name="fileText" size={48} /></div>
             <h3>No activity logs found</h3>
             <p>Actions performed by operational managers will appear here automatically.</p>
           </div>
@@ -276,7 +277,7 @@ export default function LogsPage() {
 
                       <td>
                         <span className="badge badge-neutral" style={{ fontSize: '0.78rem' }}>
-                          🏢 {log.clientName || 'Site'}
+                          <Icon name="building" size={12} /> {log.clientName || 'Site'}
                         </span>
                       </td>
 
@@ -302,7 +303,7 @@ export default function LogsPage() {
                           style={{ padding: '4px 8px', fontSize: '0.75rem' }}
                           onClick={() => setInspectLog(log)}
                         >
-                          🔍 View
+                          <Icon name="eye" size={13} /> View
                         </button>
                       </td>
                     </tr>

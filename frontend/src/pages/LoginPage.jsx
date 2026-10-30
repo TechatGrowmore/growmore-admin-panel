@@ -164,7 +164,15 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: 24, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', fontSize: '0.8rem' }}>
+          <a href="/hr/login" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>HR Portal</a>
+          <span style={{ color: 'var(--border)' }}>•</span>
+          <a href="/accountant/login" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Accountant</a>
+          <span style={{ color: 'var(--border)' }}>•</span>
+          <a href="/driver/login" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Driver Login</a>
+        </div>
+
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           GrowMore Parking Solutions © {new Date().getFullYear()}
         </p>
       </div>

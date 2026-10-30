@@ -10,13 +10,14 @@ const clientRoutes = require('./routes/clients');
 const proxyRoutes = require('./routes/proxy');
 const managerRoutes = require('./routes/managers');
 const logRoutes = require('./routes/logs');
+const { router: hrAuthRouter } = require('./routes/hrAuth');
+const { router: driverAuthRouter } = require('./routes/driverAuth');
+const employeeRoutes = require('./routes/employees');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-// In production, frontend is served by this same Express server (same origin),
-// so CORS is only needed for local development.
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -26,10 +27,8 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // In production, same-origin requests have no Origin header — always allow
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
-      // In production, allow same Render domain
       if (process.env.NODE_ENV === 'production') return callback(null, true);
       callback(new Error(`CORS: origin ${origin} not allowed`));
     },
@@ -48,6 +47,11 @@ app.use('/api/proxy', proxyRoutes);
 app.use('/api/managers', managerRoutes);
 app.use('/api/logs', logRoutes);
 
+// HR System Routes
+app.use('/api/hr/auth', hrAuthRouter);
+app.use('/api/driver/auth', driverAuthRouter);
+app.use('/api/employees', employeeRoutes);
+
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
@@ -61,7 +65,6 @@ app.get('/api/health', (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   const frontendBuild = path.join(__dirname, '..', 'frontend', 'dist');
   app.use(express.static(frontendBuild));
-  // SPA catch-all: serve index.html for any non-API route (client-side routing)
   app.get('*', (req, res) => {
     res.sendFile(path.join(frontendBuild, 'index.html'));
   });
@@ -77,8 +80,29 @@ if (!MONGODB_URI) {
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('✅  Connected to MongoDB');
+
+    // Auto-seed HR/Accountant users if they don't exist
+    try {
+      const HRUser = require('./models/HRUser');
+      const crypto = require('crypto');
+      const hash = (str) => crypto.createHash('sha256').update(str).digest('hex');
+      const defaults = [
+        { name: 'HR Manager', username: 'hr', password: hash('hr@growmore'), role: 'hr' },
+        { name: 'Accountant', username: 'accountant', password: hash('accountant@growmore'), role: 'accountant' },
+      ];
+      for (const u of defaults) {
+        const exists = await HRUser.findOne({ username: u.username });
+        if (!exists) {
+          await HRUser.create(u);
+          console.log(`✅  Seeded ${u.role} user: ${u.username}`);
+        }
+      }
+    } catch (seedErr) {
+      console.warn('⚠️  HR user seed warning:', seedErr.message);
+    }
+
     app.listen(PORT, () => {
       console.log(`🚀  Server running on port ${PORT}`);
     });

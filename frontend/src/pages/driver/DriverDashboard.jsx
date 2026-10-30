@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverAuth } from '../../context/DriverAuthContext';
+import LazyPhoto from '../../components/LazyPhoto';
 import growmoreLogo from '../../assets/Growmore-logo.jpg';
 
 const DAYS_OF_WEEK = ['Su','Mo','Tu','We','Th','Fr','Sa'];
@@ -154,13 +155,13 @@ export default function DriverDashboard() {
       {toast.msg && <div className="toast-container"><div className={`toast toast-${toast.type}`}>{toast.msg}</div></div>}
 
       {/* Header */}
-      <header style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', padding: '0 20px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+      <header className="driver-header" style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', padding: '0 20px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img src={growmoreLogo} alt="GrowMore" style={{ height: 32, objectFit: 'contain', background: '#fff', borderRadius: 6, padding: '2px 6px' }} />
           <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Driver Portal</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+          <span className="driver-header-name" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
             {empProfile?.firstName} {empProfile?.lastName}
           </span>
           <button onClick={handleLogout} style={{ padding: '6px 14px', background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
@@ -170,7 +171,7 @@ export default function DriverDashboard() {
       </header>
 
       {/* Bottom Nav */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)', display: 'flex', zIndex: 100 }}>
+      <div className="driver-bottom-nav" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)', display: 'flex', zIndex: 100 }}>
         {[
           { id: 'home', icon: '🏠', label: 'Home' },
           { id: 'punchin', icon: '📍', label: 'Punch In' },
@@ -191,7 +192,7 @@ export default function DriverDashboard() {
       </div>
 
       {/* Content */}
-      <main style={{ padding: '20px 20px 80px' }}>
+      <main className="driver-main" style={{ padding: '20px 20px 80px' }}>
 
         {/* HOME */}
         {tab === 'home' && (
@@ -218,7 +219,7 @@ export default function DriverDashboard() {
                     {todayPunch.location?.address && ` · ${todayPunch.location.address.slice(0, 60)}...`}
                   </div>
                   {todayPunch.photoUrl && (
-                    <img src={todayPunch.photoUrl} alt="Today's punch" style={{ width: 80, height: 80, borderRadius: 12, objectFit: 'cover', marginTop: 12 }} />
+                    <div style={{ marginTop: 12 }}><LazyPhoto src={todayPunch.photoUrl} /></div>
                   )}
                 </>
               ) : (
@@ -263,7 +264,7 @@ export default function DriverDashboard() {
                   Time: {new Date(todayPunch.punchInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                 </p>
                 {todayPunch.photoUrl && (
-                  <img src={todayPunch.photoUrl} alt="punch" style={{ width: 100, height: 100, borderRadius: 14, objectFit: 'cover', marginTop: 16 }} />
+                  <div style={{ marginTop: 16 }}><LazyPhoto src={todayPunch.photoUrl} size={100} /></div>
                 )}
               </div>
             ) : (

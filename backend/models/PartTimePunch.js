@@ -11,6 +11,13 @@ const partTimePunchSchema = new mongoose.Schema(
       lng: { type: Number },
       address: { type: String, default: '' },
     },
+    punchInPhotoUrl: { type: String, default: '' },
+    punchOutPhotoUrl: { type: String, default: '' },
+    punchOutLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      address: { type: String, default: '' },
+    },
     token: { type: String }, // The shared token used for this punch
   },
   {

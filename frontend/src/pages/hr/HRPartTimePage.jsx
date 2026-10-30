@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import LazyPhoto from '../../components/LazyPhoto';
 
 function PartTimeModal({ driver, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -157,13 +158,13 @@ export default function HRPartTimePage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>#</th><th>Name</th><th>Phone</th><th>Aadhar</th><th>Status</th>
+                <th>#</th><th>Name</th><th>Phone</th><th>Aadhar</th><th>Photo</th><th>Status</th>
                 <th>Registered</th><th>Punch Link</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {drivers.length === 0 ? (
-                <tr><td colSpan="8" style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>No drivers found</td></tr>
+                <tr><td colSpan="9" style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>No drivers found</td></tr>
               ) : drivers.map((d, i) => (
                 <tr key={d.id}>
                   <td>{i + 1}</td>
@@ -173,8 +174,9 @@ export default function HRPartTimePage() {
                   </td>
                   <td>{d.phone}</td>
                   <td>{d.aadharDocUrl ? <a href={d.aadharDocUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: '0.8rem' }}>View Doc ↗</a> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                  <td><LazyPhoto src={d.photoUrl} size={90} /></td>
                   <td>{statusBadge(d.status)}</td>
-                  <td style={{ fontSize: '0.78rem' }}>{new Date(d.createdAt).toLocaleDateString('en-IN')}</td>
+                  <td style={{ fontSize: '0.78rem' }}>{new Date(d.registrationDate || d.createdAt).toLocaleDateString('en-IN')}</td>
                   <td>
                     {d.punchToken ? (
                       <button onClick={() => copyLink(d.punchToken)} style={{

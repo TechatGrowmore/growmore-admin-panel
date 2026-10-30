@@ -15,6 +15,9 @@ export default function RegisterPartTimePage() {
   });
 
   const [aadharDoc, setAadharDoc] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const registrationDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const [loading, setLoading] = useState(false);
   const [fetchingToken, setFetchingToken] = useState(!!token);
   const [error, setError] = useState('');
@@ -61,9 +64,26 @@ export default function RegisterPartTimePage() {
     }
   };
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Photo must be smaller than 10MB');
+        return;
+      }
+      setPhoto(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!photo) {
+      setError('Please upload your photo.');
+      return;
+    }
 
     if (!formData.declarationAccepted) {
       setError('You must accept the declaration to proceed with registration.');
@@ -91,6 +111,7 @@ export default function RegisterPartTimePage() {
         fd.append('token', token);
       }
       fd.append('aadharDoc', aadharDoc);
+      fd.append('photo', photo);
 
       const res = await fetch('/api/employees/public/parttime', {
         method: 'POST',
@@ -238,6 +259,17 @@ export default function RegisterPartTimePage() {
               <div className="form-group">
                 <label>Email Address (Optional)</label>
                 <input className="form-input" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="name@example.com" />
+              </div>
+              <div className="form-group">
+                <label>Registration Date</label>
+                <input className="form-input" value={registrationDate} readOnly disabled />
+              </div>
+              <div className="form-group">
+                <label>Your Photo <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input type="file" accept="image/*" capture="user" onChange={handlePhotoChange} style={{ fontSize: '0.85rem', marginTop: 4 }} />
+                {photoPreview && (
+                  <img src={photoPreview} alt="Preview" style={{ width: 80, height: 80, borderRadius: 10, objectFit: 'cover', marginTop: 8, border: '1px solid var(--border)' }} />
+                )}
               </div>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <label>Residential Address <span style={{ color: 'var(--danger)' }}>*</span></label>

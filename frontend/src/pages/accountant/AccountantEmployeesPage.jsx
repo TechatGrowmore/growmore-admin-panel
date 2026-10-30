@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import LazyPhoto from '../../components/LazyPhoto';
 
 export default function AccountantEmployeesPage() {
   const [employees, setEmployees] = useState([]);
@@ -84,7 +85,7 @@ export default function AccountantEmployeesPage() {
               <tr><th>#</th><th>Name</th><th>Phone</th><th>Designation</th><th>Status</th><th>Action</th></tr>
             )}
             {tab === 'parttime' && (
-              <tr><th>#</th><th>Name</th><th>Phone</th><th>Aadhar Doc</th><th>Status</th></tr>
+              <tr><th>#</th><th>Name</th><th>Phone</th><th>Aadhar Doc</th><th>Photo</th><th>Registered</th><th>Status</th></tr>
             )}
             {tab === 'supervisors' && (
               <tr><th>#</th><th>Name</th><th>Username</th><th>Phone</th><th>Assigned Sites</th><th>Status</th></tr>
@@ -118,6 +119,8 @@ export default function AccountantEmployeesPage() {
                 <td><strong>{d.firstName} {d.lastName}</strong></td>
                 <td>{d.phone}</td>
                 <td>{d.aadharDocUrl ? <a href={d.aadharDocUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: '0.8rem' }}>View ↗</a> : '—'}</td>
+                <td><LazyPhoto src={d.photoUrl} size={90} /></td>
+                <td style={{ fontSize: '0.78rem' }}>{new Date(d.registrationDate || d.createdAt).toLocaleDateString('en-IN')}</td>
                 <td>{statusBadge(d.status)}</td>
               </tr>
             ))}
@@ -173,8 +176,7 @@ export default function AccountantEmployeesPage() {
                   <div style={{ fontWeight: 700, marginBottom: 12 }}>📍 Punch Records ({empPunches.length})</div>
                   {empPunches.slice(0, 20).map(p => (
                     <div key={p.id} style={{ display: 'flex', gap: 14, padding: '10px 0', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
-                      {p.photoUrl && <img src={p.photoUrl} alt="" onClick={() => window.open(p.photoUrl, '_blank')} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', cursor: 'pointer', flexShrink: 0 }} />}
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>
                           {new Date(p.date + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
                         </div>

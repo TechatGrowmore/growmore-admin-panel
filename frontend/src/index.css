@@ -1389,3 +1389,37 @@ a:hover { color: var(--accent-hover); }
 .empty-state .empty-icon svg { margin: 0; opacity: 1; }
 .sidebar-user-role { display: flex; align-items: center; gap: 4px; }
 .stat-card-icon { font-size: 1rem; }
+
+/* ─── Extra responsiveness: HR / Accountant / Driver ─────────── */
+.driver-main { max-width: 760px; margin: 0 auto; }
+.driver-header-name { max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 900px) {
+  /* Accountant attendance: calendar + list stack */
+  .page-body [style*="340px 1fr"] { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+@media (max-width: 768px) {
+  /* Calendars: keep 7 columns but shrink cells */
+  .page-body [style*="repeat(7, 1fr)"] { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+  .page-body [style*="min-height: 90px"] { min-height: 56px !important; padding: 4px !important; font-size: 0.7rem !important; overflow: hidden; }
+
+  /* Tab rows scroll instead of wrapping off-screen */
+  .page-body > div[style*="border-bottom"] { overflow-x: auto; white-space: nowrap; }
+
+  /* Driver portal */
+  .driver-header { padding: 0 12px !important; height: 54px !important; }
+  .driver-header > div { gap: 8px !important; min-width: 0; }
+  .driver-main { padding: 16px 14px calc(84px + env(safe-area-inset-bottom)) !important; }
+  .driver-bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+  .driver-main h1 { font-size: 1.2rem !important; }
+  .driver-main [style*="grid-template-columns"] { gap: 10px !important; }
+  .driver-main video, .driver-main img { max-width: 100%; }
+  .driver-main input, .driver-main select, .driver-main textarea { font-size: 16px; }
+}
+
+@media (max-width: 380px) {
+  .driver-header-name { display: none; }
+  .driver-main [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+  .driver-bottom-nav span:last-child { font-size: 0.6rem !important; }
+}

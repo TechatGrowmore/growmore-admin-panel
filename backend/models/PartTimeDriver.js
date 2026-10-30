@@ -9,6 +9,8 @@ const partTimeDriverSchema = new mongoose.Schema(
     aadharDocUrl: { type: String, default: '' }, // Cloudinary URL
     aadharNumber: { type: String, trim: true, default: '' },
     address: { type: String, trim: true, default: '' },
+    photoUrl: { type: String, default: '' }, // Cloudinary URL (registration photo)
+    registrationDate: { type: Date, default: Date.now },
 
     // HR approval status
     // pending = submitted, approved = HR approved, rejected = HR rejected

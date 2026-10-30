@@ -156,12 +156,22 @@ router.post(
 // Public: submit part-time registration form
 router.post(
   '/public/parttime',
-  upload.fields([{ name: 'aadharDoc', maxCount: 1 }]),
+  upload.fields([{ name: 'aadharDoc', maxCount: 1 }, { name: 'photo', maxCount: 1 }]),
   async (req, res) => {
     try {
       const data = req.body;
       const token = uuidv4();
       let aadharDocUrl = '';
+      let photoUrl = '';
+
+      if (req.files?.photo?.[0]) {
+        const r = await uploadToCloudinary(
+          req.files.photo[0].buffer,
+          `growmore/registration/part-time/${token}`,
+          'photo'
+        );
+        photoUrl = r.secure_url;
+      }
 
       if (req.files?.aadharDoc?.[0]) {
         const r = await uploadToCloudinary(
@@ -176,6 +186,8 @@ router.post(
       const driver = await PartTimeDriver.create({
         ...data,
         aadharDocUrl,
+        photoUrl,
+        registrationDate: new Date(),
         status: 'pending',
         submittedViaPublicForm: true,
         publicFormToken: token,
@@ -227,30 +239,47 @@ router.get('/parttime/punch/:token', async (req, res) => {
 });
 
 // Submit punch in/out for part-time driver
-router.post('/parttime/punch/:token', async (req, res) => {
+router.post('/parttime/punch/:token', upload.single('photo'), async (req, res) => {
   try {
     const driver = await PartTimeDriver.findOne({ punchToken: req.params.token, status: 'approved' });
     if (!driver) return res.status(404).json({ message: 'Invalid punch link' });
 
     const today = new Date().toISOString().split('T')[0];
     const { action, lat, lng, address } = req.body; // action: 'punchin' | 'punchout'
-    const location = { lat: lat ? Number(lat) : null, lng: lng ? Number(lng) : null, address: address || '' };
+    const hasLocation = lat !== undefined && lat !== '' && lat !== 'null' && lng !== undefined && lng !== '' && lng !== 'null';
+    const location = { lat: hasLocation ? Number(lat) : null, lng: hasLocation ? Number(lng) : null, address: address || '' };
+
+    if (action !== 'punchin' && action !== 'punchout') return res.status(400).json({ message: 'Invalid action' });
+    if (!req.file) return res.status(400).json({ message: 'Photo is required to punch' });
+    if (!hasLocation || Number.isNaN(location.lat) || Number.isNaN(location.lng)) {
+      return res.status(400).json({ message: 'Location is required to punch' });
+    }
 
     let punch = await PartTimePunch.findOne({ driver: driver._id, date: today });
+    if (action === 'punchin' && punch) return res.status(400).json({ message: 'Already punched in today' });
+    if (action === 'punchout' && !punch) return res.status(400).json({ message: 'Punch in first' });
+    if (action === 'punchout' && punch.punchOutTime) return res.status(400).json({ message: 'Already punched out' });
+
+    const r = await uploadToCloudinary(
+      req.file.buffer,
+      `growmore/parttime/punches/${driver.id}`,
+      `${action}_${today}`
+    );
+
     if (!punch) {
-      if (action !== 'punchin') return res.status(400).json({ message: 'Punch in first' });
       punch = await PartTimePunch.create({
         driver: driver._id,
         date: today,
         punchInTime: new Date(),
+        punchInPhotoUrl: r.secure_url,
         location,
         token: req.params.token,
       });
     } else {
       if (action === 'punchout') {
-        if (punch.punchOutTime) return res.status(400).json({ message: 'Already punched out' });
         punch.punchOutTime = new Date();
-        punch.location = location;
+        punch.punchOutPhotoUrl = r.secure_url;
+        punch.punchOutLocation = location;
         await punch.save();
       } else {
         return res.status(400).json({ message: 'Already punched in today' });

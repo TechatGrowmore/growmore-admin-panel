@@ -124,24 +124,40 @@ export default function PunchInPage() {
     startCamera();
   };
 
+  // The <video> only mounts once cameraActive is true, so attach the stream here
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [cameraActive]);
+
   useEffect(() => {
     return () => stopCamera();
   }, []);
 
   const handlePunch = async (action) => {
-    setSubmitting(true);
     setError('');
     setSuccessMsg('');
+    if (location.lat === null || location.lng === null) {
+      setError('Location is required. Please allow location access and tap Refresh.');
+      return;
+    }
+    if (!capturedPhoto) {
+      setError('Please capture your photo before punching.');
+      return;
+    }
+    setSubmitting(true);
     try {
+      const blob = await (await fetch(capturedPhoto)).blob();
+      const fd = new FormData();
+      fd.append('action', action);
+      fd.append('lat', location.lat);
+      fd.append('lng', location.lng);
+      fd.append('address', location.address);
+      fd.append('photo', blob, `${action}.jpg`);
       const res = await fetch(`/api/employees/parttime/punch/${token}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          lat: location.lat,
-          lng: location.lng,
-          address: location.address,
-        }),
+        body: fd,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -151,6 +167,7 @@ export default function PunchInPage() {
       setPunch(data.punch);
       setSuccessMsg(action === 'punchin' ? '✅ Punch-In recorded successfully!' : '✅ Punch-Out recorded successfully!');
       stopCamera();
+      setCapturedPhoto(null); // require a fresh photo for punch-out
     } catch (err) {
       setError(err.message || 'Submission error');
     } finally {
@@ -373,7 +390,7 @@ export default function PunchInPage() {
             <button
               id="punch-in-btn"
               onClick={() => handlePunch('punchin')}
-              disabled={submitting}
+              disabled={submitting || !capturedPhoto || location.lat === null}
               className="btn-primary"
               style={{
                 padding: '16px', fontSize: '1.1rem', fontWeight: 800,
@@ -392,8 +409,9 @@ export default function PunchInPage() {
             <button
               id="punch-out-btn"
               onClick={() => handlePunch('punchout')}
-              disabled={submitting}
+              disabled={submitting || !capturedPhoto || location.lat === null}
               style={{
+                opacity: (!capturedPhoto || location.lat === null) ? 0.5 : 1,
                 background: 'linear-gradient(135deg, #e74c3c, #c0392b)',
                 color: '#fff', border: 'none', borderRadius: 12,
                 padding: '16px', fontSize: '1.1rem', fontWeight: 800, cursor: 'pointer',

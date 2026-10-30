@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import LazyPhoto from '../../components/LazyPhoto';
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -63,11 +64,7 @@ function DriverDetailModal({ emp, onClose }) {
                 <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>No punch records yet</div>
               ) : punches.map(p => (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  {p.photoUrl && (
-                    <img src={p.photoUrl} alt="punch" onClick={() => window.open(p.photoUrl, '_blank')}
-                      style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', cursor: 'pointer', flexShrink: 0 }} />
-                  )}
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                       {new Date(p.date + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
@@ -76,7 +73,10 @@ function DriverDetailModal({ emp, onClose }) {
                       {p.location?.address && ` · 📍 ${p.location.address}`}
                     </div>
                   </div>
-                  <div>{statusBadge(p.status)}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    {statusBadge(p.status)}
+                    <LazyPhoto src={p.photoUrl} />
+                  </div>
                 </div>
               ))
             ) : (
@@ -204,7 +204,7 @@ export default function AccountantAttendancePage() {
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{p.employee?.phone}</div>
                         </td>
                         <td style={{ fontSize: '0.82rem' }}>{p.punchInTime ? new Date(p.punchInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                        <td>{p.photoUrl ? <img src={p.photoUrl} alt="punch" onClick={() => window.open(p.photoUrl, '_blank')} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} /> : '—'}</td>
+                        <td><LazyPhoto src={p.photoUrl} size={90} /></td>
                         <td style={{ fontSize: '0.75rem', maxWidth: 180 }}>{p.location?.address || (p.location?.lat ? `${p.location.lat.toFixed(4)}, ${p.location.lng.toFixed(4)}` : '—')}</td>
                         <td><span className="badge badge-success">Present</span></td>
                         <td><button className="btn-secondary btn-small" onClick={() => setSelectedEmp(p.employee)}>History</button></td>
@@ -239,14 +239,19 @@ export default function AccountantAttendancePage() {
                 <div className="data-table-container">
                   <div className="data-table-header"><h3>🚗 Part-Time — {ptPunches.length} Punched</h3></div>
                   <table className="data-table">
-                    <thead><tr><th>Driver</th><th>Punch In</th><th>Punch Out</th><th>Location</th></tr></thead>
+                    <thead><tr><th>Driver</th><th>Punch In</th><th>Punch Out</th><th>In Photo</th><th>Out Photo</th><th>Location</th></tr></thead>
                     <tbody>
                       {ptPunches.map(p => (
                         <tr key={p.id}>
                           <td><strong>{p.driver?.firstName} {p.driver?.lastName}</strong><div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{p.driver?.phone}</div></td>
                           <td>{p.punchInTime ? new Date(p.punchInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                           <td>{p.punchOutTime ? new Date(p.punchOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : <span style={{ color: 'var(--text-muted)' }}>Not out yet</span>}</td>
-                          <td style={{ fontSize: '0.75rem' }}>{p.location?.address || '—'}</td>
+                          <td><LazyPhoto src={p.punchInPhotoUrl} size={90} /></td>
+                          <td><LazyPhoto src={p.punchOutPhotoUrl} size={90} /></td>
+                          <td style={{ fontSize: '0.75rem' }}>
+                            <div>In: {p.location?.address || '—'}</div>
+                            {p.punchOutLocation?.address && <div>Out: {p.punchOutLocation.address}</div>}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

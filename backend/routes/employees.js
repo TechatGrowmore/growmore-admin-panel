@@ -96,8 +96,9 @@ async function uploadFiles(files, spec, folder) {
   return out;
 }
 
-// Bank details are compulsory on the public registration forms
+// Driving license and bank details are compulsory on the public registration forms
 function bankDetailsError(data, files) {
+  if (!files?.licenseDoc?.[0]) return 'Driving license is required';
   const required = [
     ['bankName', 'Bank name'],
     ['bankAccountNumber', 'Account number'],

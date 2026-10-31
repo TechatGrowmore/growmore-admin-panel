@@ -145,6 +145,11 @@ export default function RegisterFullTimePage() {
       return;
     }
 
+    if (!files.licenseDoc) {
+      setError('Please upload your Driving License.');
+      return;
+    }
+
     if (!files.passbookDoc) {
       setError('Please upload a photo of your bank passbook.');
       return;
@@ -479,7 +484,7 @@ export default function RegisterFullTimePage() {
 
               {/* Driving License */}
               <div className="form-group">
-                <label>Driving License</label>
+                <label>Driving License <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <input type="file" accept="image/*,application/pdf" onChange={(e) => handleFileChange(e, 'licenseDoc')} style={{ fontSize: '0.85rem', marginTop: 8 }} />
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>Photo or PDF of your driving license (front &amp; back)</p>
               </div>

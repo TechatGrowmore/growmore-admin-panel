@@ -108,6 +108,11 @@ export default function RegisterPartTimePage() {
       return;
     }
 
+    if (!licenseDoc) {
+      setError('Please upload your Driving License.');
+      return;
+    }
+
     if (!passbookDoc) {
       setError('Please upload a photo of your bank passbook.');
       return;
@@ -324,7 +329,7 @@ export default function RegisterPartTimePage() {
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>Clear photo or PDF copy of front &amp; back</p>
               </div>
               <div className="form-group">
-                <label>Upload Driving License (Photo / PDF)</label>
+                <label>Upload Driving License (Photo / PDF) <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <input type="file" accept="image/*,application/pdf" onChange={(e) => pickDoc(e, setLicenseDoc, 'Driving license')} style={{ fontSize: '0.85rem', marginTop: 4 }} />
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>Front &amp; back of your license</p>
               </div>

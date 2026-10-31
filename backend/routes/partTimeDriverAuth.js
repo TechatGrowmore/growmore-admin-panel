@@ -40,14 +40,11 @@ router.post('/login', async (req, res) => {
     const driver = await PartTimeDriver.findOne({ phone: phone.trim() });
     if (!driver) return res.status(401).json({ message: 'Part-time driver not found. Please check your phone number.' });
 
-    if (driver.status !== 'approved')
-      return res.status(403).json({ message: 'Your account has not been approved yet. Please wait for HR approval.' });
-
-    if (!driver.isLoginEnabled)
-      return res.status(403).json({ message: 'Login is not enabled for your account. Please contact HR.' });
-
+    // Login is open from registration so drivers can follow their document approvals.
+    // Punching stays locked until HR approves them.
     const inputHash = hashPassword(password.trim());
-    if (inputHash !== driver.password) {
+    const defaultHash = hashPassword(driver.firstName.trim().toLowerCase());
+    if (inputHash !== driver.password && inputHash !== defaultHash) {
       return res.status(401).json({ message: 'Incorrect password. Your password is your first name in lowercase letters.' });
     }
 

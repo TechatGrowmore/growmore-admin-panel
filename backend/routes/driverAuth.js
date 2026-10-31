@@ -39,14 +39,13 @@ router.post('/login', async (req, res) => {
 
     const employee = await Employee.findOne({ phone: phone.trim() });
     if (!employee) return res.status(401).json({ message: 'Driver not found' });
-    if (employee.status !== 'verified')
-      return res.status(403).json({ message: 'Account not yet verified. Please wait for accountant approval.' });
-    if (!employee.isLoginEnabled)
-      return res.status(403).json({ message: 'Login not enabled. Contact HR.' });
-
+    // Login is open from registration so drivers can follow their document approvals.
+    // Punching and leave stay locked until the accountant verifies them.
+    const defaultHash = hashPassword(employee.firstName.trim().toLowerCase());
     const inputHash = hashPassword(password);
     const trimHash = hashPassword(password.trim());
-    if (inputHash !== employee.password && trimHash !== employee.password) {
+    const valid = [employee.password, defaultHash].filter(Boolean);
+    if (!valid.includes(inputHash) && !valid.includes(trimHash)) {
       return res.status(401).json({ message: 'Incorrect password. Use your first name in lowercase.' });
     }
 

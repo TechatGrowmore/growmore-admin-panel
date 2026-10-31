@@ -150,6 +150,7 @@ export default function DriverDashboard() {
   }
 
   const empProfile = user;
+  const locked = !!user?.status && user.status !== 'verified'; // punching etc. unlock after accountant verification
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -179,7 +180,7 @@ export default function DriverDashboard() {
           { id: 'calendar', icon: '📅', label: 'Calendar' },
           { id: 'leave', icon: '📝', label: 'Leave' },
           { id: 'profile', icon: '👤', label: 'Profile' },
-        ].map(({ id, icon, label }) => (
+        ].filter(t => !locked || t.id === 'profile').map(({ id, icon, label }) => (
           <button key={id} onClick={() => setTab(id)} style={{
             flex: 1, padding: '10px 4px 8px', border: 'none', background: 'none', cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
@@ -195,8 +196,14 @@ export default function DriverDashboard() {
       {/* Content */}
       <main className="driver-main" style={{ padding: '20px 20px 80px' }}>
 
+        {locked && (
+          <div style={{ background: 'var(--warning-bg)', color: 'var(--warning)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.85rem' }}>
+            Your registration is waiting for accountant verification. Punch-in and leave unlock once you are verified. You can track your document approvals below.
+          </div>
+        )}
+
         {/* HOME */}
-        {tab === 'home' && (
+        {!locked && tab === 'home' && (
           <div>
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 4 }}>
               Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, {empProfile?.firstName}! 👋
@@ -253,7 +260,7 @@ export default function DriverDashboard() {
         )}
 
         {/* PUNCH IN */}
-        {tab === 'punchin' && (
+        {!locked && tab === 'punchin' && (
           <div>
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 20 }}>📍 Punch In</h1>
 
@@ -333,7 +340,7 @@ export default function DriverDashboard() {
         )}
 
         {/* CALENDAR */}
-        {tab === 'calendar' && (
+        {!locked && tab === 'calendar' && (
           <div>
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 20 }}>📅 My Attendance</h1>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -365,7 +372,7 @@ export default function DriverDashboard() {
         )}
 
         {/* LEAVE */}
-        {tab === 'leave' && (
+        {!locked && tab === 'leave' && (
           <div>
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 20 }}>📝 Leave Application</h1>
 
@@ -410,7 +417,7 @@ export default function DriverDashboard() {
         )}
 
         {/* PROFILE */}
-        {tab === 'profile' && (
+        {(locked || tab === 'profile') && (
           <div>
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 20 }}>👤 My Profile</h1>
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: 24, textAlign: 'center', marginBottom: 20 }}>
@@ -423,7 +430,9 @@ export default function DriverDashboard() {
               )}
               <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{user?.firstName} {user?.lastName}</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{user?.designation || 'Driver'} · {user?.department}</p>
-              <span className="badge badge-success" style={{ marginTop: 8 }}>Verified Employee</span>
+              {locked
+                ? <span className="badge badge-warning" style={{ marginTop: 8 }}>Verification Pending</span>
+                : <span className="badge badge-success" style={{ marginTop: 8 }}>Verified Employee</span>}
             </div>
             <DriverProfileView kind="fulltime" />
           </div>

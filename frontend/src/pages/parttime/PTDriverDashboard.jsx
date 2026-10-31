@@ -222,12 +222,13 @@ export default function PTDriverDashboard() {
   const driverName = profile ? `${profile.firstName} ${profile.lastName}` : user?.name || 'Driver';
 
   // ── Navigation tabs ──────────────────────────────────────────────────────────
+  const locked = !!profile?.status && profile.status !== 'approved'; // punching unlocks after HR approval
   const tabs = [
     { id: 'home', icon: '🏠', label: 'Home' },
     { id: 'punchin', icon: '📍', label: 'Punch In' },
     { id: 'calendar', icon: '📅', label: 'Calendar' },
     { id: 'profile', icon: '👤', label: 'Profile' },
-  ];
+  ].filter(t => !locked || t.id === 'profile');
 
   const isPunchedIn = !!todayPunch?.punchInTime;
   const isPunchedOut = !!todayPunch?.punchOutTime;
@@ -272,7 +273,13 @@ export default function PTDriverDashboard() {
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '20px 16px' }}>
 
         {/* ══ HOME TAB ═══════════════════════════════════════════════════════════ */}
-        {tab === 'home' && (
+        {locked && (
+          <div style={{ background: 'var(--warning-bg)', color: 'var(--warning)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.85rem' }}>
+            Your registration is waiting for HR approval. Punch-in unlocks once you are approved. You can track your document approvals below.
+          </div>
+        )}
+
+        {!locked && tab === 'home' && (
           <div>
             {/* Today Status Card */}
             <div style={{
@@ -405,7 +412,7 @@ export default function PTDriverDashboard() {
         )}
 
         {/* ══ PUNCH IN TAB ════════════════════════════════════════════════════════ */}
-        {tab === 'punchin' && (
+        {!locked && tab === 'punchin' && (
           <div>
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 20 }}>
               {isPunchedIn && !isPunchedOut ? '🚪 Punch Out' : '📍 Punch In'}
@@ -518,7 +525,7 @@ export default function PTDriverDashboard() {
         )}
 
         {/* ══ CALENDAR TAB ════════════════════════════════════════════════════════ */}
-        {tab === 'calendar' && (
+        {!locked && tab === 'calendar' && (
           <div>
             {/* Month Navigator */}
             <div style={{
@@ -668,7 +675,7 @@ export default function PTDriverDashboard() {
         )}
 
         {/* ══ PROFILE TAB ═════════════════════════════════════════════════════════ */}
-        {tab === 'profile' && (
+        {(locked || tab === 'profile') && (
           <div>
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 20 }}>👤 My Profile</h1>
 

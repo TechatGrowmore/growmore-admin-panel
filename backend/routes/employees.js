@@ -128,6 +128,21 @@ const PT_DOC_SPEC = {
 };
 const PT_DOC_FIELDS = Object.keys(PT_DOC_SPEC).map(name => ({ name, maxCount: 1 }));
 
+// Punching / leave are only for verified (full-time) or approved (part-time) drivers
+function requireActiveAccount(Model, okStatus, getId) {
+  return async (req, res, next) => {
+    try {
+      const rec = await Model.findById(getId(req)).select('status');
+      if (!rec || rec.status !== okStatus) {
+        return res.status(403).json({ message: 'Your account is not approved yet. This feature unlocks after approval.' });
+      }
+      next();
+    } catch (err) {
+      return res.status(500).json({ message: err.message });
+    }
+  };
+}
+
 // Clear the review of every document whose file was just replaced (it goes back to "pending")
 function resetReviewsFor(rec, urls) {
   const reviews = { ...(rec.docReviews || {}) };
@@ -721,6 +736,7 @@ router.get('/schedule', requireHRAuth, async (req, res) => {
 router.post(
   '/punches/fulltime',
   requireDriverAuth,
+  requireActiveAccount(Employee, 'verified', req => req.driver.id),
   upload.single('photo'),
   async (req, res) => {
     try {
@@ -827,7 +843,7 @@ router.get('/punches/parttime/:driverId([0-9a-fA-F]{24})', requireHRAuth, async 
 // ─── LEAVE ROUTES ─────────────────────────────────────────────────────────────
 
 // Driver: apply for leave
-router.post('/leaves', requireDriverAuth, async (req, res) => {
+router.post('/leaves', requireDriverAuth, requireActiveAccount(Employee, 'verified', req => req.driver.id), async (req, res) => {
   try {
     const { date, reason } = req.body;
     if (!date) return res.status(400).json({ message: 'Date required' });
@@ -937,6 +953,7 @@ router.get('/punches/parttime/me', requirePartTimeDriverAuth, async (req, res) =
 router.post(
   '/punches/parttime/me',
   requirePartTimeDriverAuth,
+  requireActiveAccount(PartTimeDriver, 'approved', req => req.ptDriver.id),
   upload.single('photo'),
   async (req, res) => {
     try {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import growmoreLogo from '../assets/Growmore-logo.jpg';
+import { compressImage } from '../utils/compressImage';
 
 export default function RegisterPartTimePage() {
   const { token } = useParams();
@@ -60,8 +61,8 @@ export default function RegisterPartTimePage() {
     }));
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = async (e) => {
+    const file = await compressImage(e.target.files[0]);
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
         setError('Aadhar document must be smaller than 10MB');
@@ -71,8 +72,8 @@ export default function RegisterPartTimePage() {
     }
   };
 
-  const pickDoc = (e, setter, name) => {
-    const file = e.target.files[0];
+  const pickDoc = async (e, setter, name) => {
+    const file = await compressImage(e.target.files[0]);
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
         setError(`${name} must be smaller than 10MB`);
@@ -82,8 +83,8 @@ export default function RegisterPartTimePage() {
     }
   };
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
+  const handlePhotoChange = async (e) => {
+    const file = await compressImage(e.target.files[0]);
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
         setError('Photo must be smaller than 10MB');

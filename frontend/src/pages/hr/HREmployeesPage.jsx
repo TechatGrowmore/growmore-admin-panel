@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import ProfileCompletion from '../../components/ProfileCompletion';
 import LazyPhoto from '../../components/LazyPhoto';
 import DocumentsPanel, { reviewDocument } from '../../components/DocumentsPanel';
+import { compressImage } from '../../utils/compressImage';
 
 const INDIAN_STATES = ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Chandigarh','Puducherry'];
 
@@ -52,7 +53,11 @@ function EmployeeModal({ emp, onClose, onSave, onChanged }) {
     const { name, value, type, checked } = e.target;
     setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
   };
-  const handleFile = (e) => setFiles(f => ({ ...f, [e.target.name]: e.target.files[0] }));
+  const handleFile = async (e) => {
+    const { name } = e.target;
+    const file = await compressImage(e.target.files[0]);
+    setFiles(f => ({ ...f, [name]: file }));
+  };
 
   const handleSubmit = async (submitForVerification = false) => {
     setLoading(true); setError('');

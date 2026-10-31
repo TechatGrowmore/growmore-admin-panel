@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import LazyPhoto from '../../components/LazyPhoto';
 import ProfileCompletion from '../../components/ProfileCompletion';
 import DocumentsPanel, { reviewDocument } from '../../components/DocumentsPanel';
+import { compressImage } from '../../utils/compressImage';
 
 const PT_SKIP_KEYS = ['id', 'docReviews', 'documents', 'profileCompletion', 'createdAt', 'updatedAt', 'status',
   'photoUrl', 'aadharDocUrl', 'licenseDocUrl', 'passbookDocUrl', 'fullName', 'registrationDate',
@@ -26,7 +27,11 @@ function PartTimeModal({ driver, onClose, onSave, onChanged }) {
   const [busyKey, setBusyKey] = useState('');
 
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
-  const handleFile = e => setFiles(f => ({ ...f, [e.target.name]: e.target.files[0] }));
+  const handleFile = async (e) => {
+    const { name } = e.target;
+    const file = await compressImage(e.target.files[0]);
+    setFiles(f => ({ ...f, [name]: file }));
+  };
 
   const handleSubmit = async () => {
     setLoading(true); setError('');

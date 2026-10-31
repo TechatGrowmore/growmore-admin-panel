@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import ProfileCompletion from './ProfileCompletion';
 import DocumentsPanel from './DocumentsPanel';
+import { compressImage } from '../utils/compressImage';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-IN') : '');
 const join = (...parts) => parts.filter(Boolean).join(', ');
@@ -61,7 +62,7 @@ export default function DriverProfileView({ kind }) {
     setBusyKey(docKey); setError(''); setMsg('');
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', await compressImage(file));
       const res = await fetch(`${base}/docs/${docKey}`, { method: 'POST', credentials: 'include', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Upload failed');

@@ -34,7 +34,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
+const { uploadFile } = require('../utils/r2');
 
 const Employee = require('../models/Employee');
 const PartTimeDriver = require('../models/PartTimeDriver');
@@ -50,14 +50,7 @@ const { DOC_URL_FIELDS, FULL_TIME_DOCS, PART_TIME_DOCS, docStatus } = require('.
 
 const router = express.Router();
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || '',
-  api_key: process.env.CLOUDINARY_API_KEY || '',
-  api_secret: process.env.CLOUDINARY_API_SECRET || '',
-});
-
-// Multer: store in memory for Cloudinary upload
+// Multer: store in memory, then upload to Cloudflare R2
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
@@ -70,18 +63,10 @@ const upload = multer({
   },
 });
 
-// Helper: upload buffer to cloudinary
-async function uploadToCloudinary(buffer, folder, publicId, resourceType = 'image') {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder, public_id: publicId, resource_type: resourceType, overwrite: true },
-      (error, result) => {
-        if (error) reject(error);
-        else resolve(result);
-      }
-    );
-    stream.end(buffer);
-  });
+// Helper: upload a buffer to Cloudflare R2. The stored URL is a private app route (/api/files/<key>).
+// resourceType is kept for call-site compatibility; the real file type is detected from the bytes.
+async function uploadToStorage(buffer, folder, publicId, resourceType = 'image') {
+  return uploadFile(buffer, folder, publicId);
 }
 
 // Upload optional files from multer's req.files. spec: { fieldName: [urlKey, publicId, resourceType] }
@@ -89,7 +74,7 @@ async function uploadFiles(files, spec, folder) {
   const out = {};
   for (const [field, [urlKey, publicId, resourceType]] of Object.entries(spec)) {
     if (files?.[field]?.[0]) {
-      const r = await uploadToCloudinary(files[field][0].buffer, folder, publicId, resourceType);
+      const r = await uploadToStorage(files[field][0].buffer, folder, publicId, resourceType);
       out[urlKey] = r.secure_url;
     }
   }
@@ -220,7 +205,7 @@ function driverUploadDocHandler(Model, validDocs, getId, folderBase, respKey) {
         return res.status(400).json({ message: 'Only rejected or missing documents can be uploaded again' });
       }
       const [urlKey, publicId, resourceType] = DOC_UPLOAD_SPEC[key];
-      const r = await uploadToCloudinary(req.file.buffer, `${folderBase}/${rec.id}`, publicId, resourceType);
+      const r = await uploadToStorage(req.file.buffer, `${folderBase}/${rec.id}`, publicId, resourceType);
       rec[urlKey] = r.secure_url;
       rec.docReviews = {
         ...(rec.docReviews || {}),
@@ -381,7 +366,7 @@ router.post('/parttime/punch/:token', upload.single('photo'), async (req, res) =
     if (action === 'punchout' && !punch) return res.status(400).json({ message: 'Punch in first' });
     if (action === 'punchout' && punch.punchOutTime) return res.status(400).json({ message: 'Already punched out' });
 
-    const r = await uploadToCloudinary(
+    const r = await uploadToStorage(
       req.file.buffer,
       `growmore/parttime/punches/${driver.id}`,
       `${action}_${today}`
@@ -904,13 +889,13 @@ router.post(
       let cloudinaryPublicId = '';
 
       if (req.file) {
-        const result = await uploadToCloudinary(
+        const result = await uploadToStorage(
           req.file.buffer,
           `growmore/drivers/${employeeId}`,
           `punchin_${today}`
         );
         photoUrl = result.secure_url;
-        cloudinaryPublicId = result.public_id;
+        cloudinaryPublicId = result.key;
       }
 
       const { lat, lng, address } = req.body;
@@ -1124,7 +1109,7 @@ router.post(
         let photoUrl = '';
         if (req.file) {
           try {
-            const result = await uploadToCloudinary(
+            const result = await uploadToStorage(
               req.file.buffer,
               `growmore/parttime/${driverId}`,
               `punchin_${today}`,
@@ -1149,7 +1134,7 @@ router.post(
         let photoUrl = '';
         if (req.file) {
           try {
-            const result = await uploadToCloudinary(
+            const result = await uploadToStorage(
               req.file.buffer,
               `growmore/parttime/${driverId}`,
               `punchout_${today}`,

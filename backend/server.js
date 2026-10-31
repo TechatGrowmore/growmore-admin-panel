@@ -53,6 +53,7 @@ app.use('/api/hr/auth', hrAuthRouter);
 app.use('/api/driver/auth', driverAuthRouter);
 app.use('/api/ptdriver/auth', ptDriverAuthRouter);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/files', require('./routes/files'));
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useHRAuth } from '../../context/HRAuthContext';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function HRCalendarPage() {
+  const { user } = useHRAuth();
+  const canEdit = user?.role === 'hr'; // accountant gets a read-only view
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -12,6 +17,7 @@ export default function HRCalendarPage() {
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [allEmployees, setAllEmployees] = useState([]);
   const [allPartTime, setAllPartTime] = useState([]);
+  const [venues, setVenues] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
@@ -30,10 +36,12 @@ export default function HRCalendarPage() {
   };
 
   const loadEmployees = async () => {
-    const [ftRes, ptRes] = await Promise.all([
+    const [ftRes, ptRes, vRes] = await Promise.all([
       fetch('/api/employees/fulltime?status=verified', { credentials: 'include' }),
       fetch('/api/employees/parttime?status=approved', { credentials: 'include' }),
+      fetch('/api/employees/venues?active=true', { credentials: 'include' }),
     ]);
+    if (vRes.ok) setVenues((await vRes.json()).venues || []);
     const ftData = ftRes.ok ? await ftRes.json() : { employees: [] };
     const ptData = ptRes.ok ? await ptRes.json() : { drivers: [] };
     setAllEmployees(ftData.employees || []);
@@ -46,25 +54,50 @@ export default function HRCalendarPage() {
   const openDay = async (dateStr) => {
     setSelectedDate(dateStr);
     const existing = schedules[dateStr];
-    if (existing) {
-      setSelectedSchedule({
-        fullTimeDrivers: existing.fullTimeDrivers?.map(d => d.id || d._id) || [],
-        partTimeDrivers: existing.partTimeDrivers?.map(d => d.id || d._id) || [],
-        notes: existing.notes || '',
-      });
-    } else {
-      setSelectedSchedule({ fullTimeDrivers: [], partTimeDrivers: [], notes: '' });
+    const idOf = (x) => (x && typeof x === 'object' ? (x.id || x._id) : x);
+    let assignments = (existing?.partTimeAssignments || []).map(a => ({
+      driver: idOf(a.driver), venue: idOf(a.venue) || '', amount: a.amount ?? '',
+    }));
+    if (assignments.length === 0 && existing?.partTimeDrivers?.length) {
+      // legacy day with drivers but no venue / pay yet
+      assignments = existing.partTimeDrivers.map(d => ({ driver: idOf(d), venue: '', amount: '' }));
     }
-  };
-
-  const toggleDriver = (id, type) => {
-    setSelectedSchedule(prev => {
-      const arr = prev[type];
-      return { ...prev, [type]: arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id] };
+    setSelectedSchedule({
+      fullTimeDrivers: existing?.fullTimeDrivers?.map(d => d.id || d._id) || [],
+      partTimeAssignments: assignments,
+      notes: existing?.notes || '',
     });
   };
 
+  const toggleDriver = (id) => {
+    setSelectedSchedule(prev => ({
+      ...prev,
+      fullTimeDrivers: prev.fullTimeDrivers.includes(id) ? prev.fullTimeDrivers.filter(x => x !== id) : [...prev.fullTimeDrivers, id],
+    }));
+  };
+
+  const togglePartTime = (id) => {
+    setSelectedSchedule(prev => {
+      const has = prev.partTimeAssignments.some(a => a.driver === id);
+      return {
+        ...prev,
+        partTimeAssignments: has
+          ? prev.partTimeAssignments.filter(a => a.driver !== id)
+          : [...prev.partTimeAssignments, { driver: id, venue: '', amount: '' }],
+      };
+    });
+  };
+
+  const updateAssignment = (id, patch) => {
+    setSelectedSchedule(prev => ({
+      ...prev,
+      partTimeAssignments: prev.partTimeAssignments.map(a => (a.driver === id ? { ...a, ...patch } : a)),
+    }));
+  };
+
   const saveSchedule = async () => {
+    const incomplete = selectedSchedule.partTimeAssignments.find(a => !a.venue || a.amount === '' || Number(a.amount) < 0);
+    if (incomplete) { showToast('Select a venue and enter the payment for every part-time driver'); return; }
     setSaving(true);
     try {
       const res = await fetch(`/api/employees/schedule/${selectedDate}`, {
@@ -77,6 +110,8 @@ export default function HRCalendarPage() {
         setSchedules(prev => ({ ...prev, [selectedDate]: data.schedule }));
         showToast('Schedule saved!');
         setSelectedDate(null);
+      } else {
+        showToast(data.message || 'Failed to save schedule');
       }
     } catch { } finally { setSaving(false); }
   };
@@ -127,7 +162,8 @@ export default function HRCalendarPage() {
             const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
             const sched = schedules[dateStr];
             const ftCount = sched?.fullTimeDrivers?.length || 0;
-            const ptCount = sched?.partTimeDrivers?.length || 0;
+            const ptCount = sched?.partTimeAssignments?.length || sched?.partTimeDrivers?.length || 0;
+            const ptTotal = (sched?.partTimeAssignments || []).reduce((sum, a) => sum + (a.amount || 0), 0);
             const isToday = dateStr === todayStr;
             const isPast = dateStr < todayStr;
 
@@ -160,7 +196,7 @@ export default function HRCalendarPage() {
                 )}
                 {ptCount > 0 && (
                   <div style={{ fontSize: '0.7rem', background: 'var(--amber-glow)', color: 'var(--amber)', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
-                    🚗 {ptCount} PT
+                    🚗 {ptCount} PT{ptTotal > 0 ? ` · ${money(ptTotal)}` : ''}
                   </div>
                 )}
               </div>
@@ -178,72 +214,106 @@ export default function HRCalendarPage() {
               <button className="modal-close" onClick={() => setSelectedDate(null)}>✕</button>
             </div>
             <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                {/* Full-time */}
-                <div>
-                  <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 10, color: 'var(--accent)' }}>
-                    👤 Full-Time Drivers
-                  </h3>
-                  {allEmployees.length === 0 ? (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No verified FT drivers</p>
-                  ) : (
-                    <div className="site-select-box">
-                      {allEmployees.map(emp => (
-                        <label key={emp.id} className="site-checkbox-item">
-                          <input type="checkbox" checked={selectedSchedule.fullTimeDrivers.includes(emp.id)}
-                            onChange={() => toggleDriver(emp.id, 'fullTimeDrivers')}
-                            style={{ accentColor: 'var(--accent)' }} />
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{emp.firstName} {emp.lastName}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{emp.phone}</div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Part-time */}
-                <div>
-                  <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 10, color: 'var(--amber)' }}>
-                    🚗 Part-Time Drivers
-                  </h3>
-                  {allPartTime.length === 0 ? (
+              {/* Part-time: venue + pay per driver for this day */}
+              <div>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 10, color: 'var(--amber)' }}>
+                  🚗 Part-Time Drivers — venue &amp; pay for this day
+                </h3>
+                {canEdit && venues.length === 0 && (
+                  <div className="login-error" style={{ marginBottom: 10 }}>
+                    No venues yet. <Link to="/hr/dashboard/venues" style={{ color: 'inherit', fontWeight: 700 }}>Add a venue</Link> first, then assign drivers.
+                  </div>
+                )}
+                {canEdit ? (
+                  allPartTime.length === 0 ? (
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No approved PT drivers</p>
-                  ) : (
-                    <div className="site-select-box">
-                      {allPartTime.map(d => (
-                        <label key={d.id} className="site-checkbox-item">
-                          <input type="checkbox" checked={selectedSchedule.partTimeDrivers.includes(d.id)}
-                            onChange={() => toggleDriver(d.id, 'partTimeDrivers')}
-                            style={{ accentColor: 'var(--amber)' }} />
+                  ) : allPartTime.map(d => {
+                    const a = selectedSchedule.partTimeAssignments.find(x => x.driver === d.id);
+                    return (
+                      <div key={d.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={!!a} onChange={() => togglePartTime(d.id)} style={{ accentColor: 'var(--amber)' }} />
                           <div>
                             <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{d.firstName} {d.lastName}</div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{d.phone}</div>
                           </div>
                         </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        {a && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10, marginTop: 8, marginLeft: 26 }}>
+                            <select className="form-input" value={a.venue} onChange={e => updateAssignment(d.id, { venue: e.target.value })}>
+                              <option value="">Select venue</option>
+                              {venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                              {a.venue && !venues.some(v => v.id === a.venue) && <option value={a.venue}>(inactive venue)</option>}
+                            </select>
+                            <input className="form-input" type="number" min="0" placeholder="Pay ₹" value={a.amount}
+                              onChange={e => updateAssignment(d.id, { amount: e.target.value })} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  (schedules[selectedDate]?.partTimeAssignments || []).length === 0 ? (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No part-time drivers assigned for this day</p>
+                  ) : (
+                    <table className="data-table" style={{ minWidth: 0 }}>
+                      <thead><tr><th>Driver</th><th>Venue</th><th>Pay</th></tr></thead>
+                      <tbody>
+                        {schedules[selectedDate].partTimeAssignments.map((a, i) => (
+                          <tr key={i}>
+                            <td>{a.driver?.firstName} {a.driver?.lastName}<div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{a.driver?.phone}</div></td>
+                            <td>{a.venueName || '—'}</td>
+                            <td><strong>{money(a.amount)}</strong></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                )}
+              </div>
+
+              {/* Full-time */}
+              <div style={{ marginTop: 20 }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 10, color: 'var(--accent)' }}>
+                  👤 Full-Time Drivers <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(venue and pay are fixed on their profile)</span>
+                </h3>
+                {allEmployees.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No verified FT drivers</p>
+                ) : (
+                  <div className="site-select-box">
+                    {allEmployees.map(emp => (
+                      <label key={emp.id} className="site-checkbox-item">
+                        <input type="checkbox" checked={selectedSchedule.fullTimeDrivers.includes(emp.id)} disabled={!canEdit}
+                          onChange={() => toggleDriver(emp.id)} style={{ accentColor: 'var(--accent)' }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{emp.firstName} {emp.lastName}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{emp.phone}{emp.venue ? ` · ${emp.venue}` : ''}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="form-group" style={{ marginTop: 16 }}>
                 <label>Notes for this day</label>
                 <textarea className="form-input" rows={2} value={selectedSchedule.notes}
-                  onChange={e => setSelectedSchedule(s => ({ ...s, notes: e.target.value }))}
+                  onChange={e => setSelectedSchedule(s => ({ ...s, notes: e.target.value }))} disabled={!canEdit}
                   placeholder="Add any shift notes..." style={{ resize: 'vertical' }} />
               </div>
 
               <div style={{ marginTop: 12, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                {selectedSchedule.fullTimeDrivers.length} FT + {selectedSchedule.partTimeDrivers.length} PT drivers scheduled
+                {selectedSchedule.fullTimeDrivers.length} FT + {selectedSchedule.partTimeAssignments.length} PT drivers scheduled
+                {selectedSchedule.partTimeAssignments.length > 0 && ` · PT total ${money(selectedSchedule.partTimeAssignments.reduce((t, a) => t + (Number(a.amount) || 0), 0))}`}
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setSelectedDate(null)}>Cancel</button>
-              <button className="btn-primary" style={{ width: 'auto', padding: '9px 20px' }} onClick={saveSchedule} disabled={saving}>
-                {saving ? 'Saving...' : 'Save Schedule'}
-              </button>
+              <button className="btn-secondary" onClick={() => setSelectedDate(null)}>{canEdit ? 'Cancel' : 'Close'}</button>
+              {canEdit && (
+                <button className="btn-primary" style={{ width: 'auto', padding: '9px 20px' }} onClick={saveSchedule} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Schedule'}
+                </button>
+              )}
             </div>
           </div>
         </div>

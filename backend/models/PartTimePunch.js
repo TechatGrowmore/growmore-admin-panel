@@ -4,6 +4,7 @@ const partTimePunchSchema = new mongoose.Schema(
   {
     driver: { type: mongoose.Schema.Types.ObjectId, ref: 'PartTimeDriver', required: true },
     date: { type: String, required: true }, // YYYY-MM-DD
+    venue: { type: String, default: '' }, // venue assigned for that day
     punchInTime: { type: Date },
     punchOutTime: { type: Date },
     location: {

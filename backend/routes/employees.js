@@ -42,6 +42,7 @@ const PunchIn = require('../models/PunchIn');
 const PartTimePunch = require('../models/PartTimePunch');
 const Leave = require('../models/Leave');
 const DaySchedule = require('../models/DaySchedule');
+const Venue = require('../models/Venue');
 const OperationalManager = require('../models/OperationalManager');
 const { requireHRAuth, requireRole } = require('./hrAuth');
 const { requireDriverAuth } = require('./driverAuth');
@@ -141,6 +142,12 @@ function requireActiveAccount(Model, okStatus, getId) {
       return res.status(500).json({ message: err.message });
     }
   };
+}
+
+// Venue + pay assigned to a part-time driver for a day (or null)
+async function assignmentFor(driverId, date) {
+  const sched = await DaySchedule.findOne({ date, 'partTimeAssignments.driver': driverId });
+  return sched?.partTimeAssignments?.find(a => String(a.driver) === String(driverId)) || null;
 }
 
 // Clear the review of every document whose file was just replaced (it goes back to "pending")
@@ -375,6 +382,7 @@ router.post('/parttime/punch/:token', upload.single('photo'), async (req, res) =
         date: today,
         punchInTime: new Date(),
         punchInPhotoUrl: r.secure_url,
+        venue: (await assignmentFor(driver._id, today))?.venueName || '',
         location,
         token: req.params.token,
       });
@@ -687,27 +695,52 @@ router.post('/fulltime/:id/reject', requireHRAuth, requireRole('accountant'), as
 
 // ─── SCHEDULE / CALENDAR ──────────────────────────────────────────────────────
 
+const SCHEDULE_POPULATE = [
+  { path: 'fullTimeDrivers', select: 'firstName lastName phone designation status venue' },
+  { path: 'partTimeDrivers', select: 'firstName lastName phone status' },
+  { path: 'partTimeAssignments.driver', select: 'firstName lastName phone status' },
+];
+
 router.get('/schedule/:date', requireHRAuth, async (req, res) => {
   try {
-    const schedule = await DaySchedule.findOne({ date: req.params.date })
-      .populate('fullTimeDrivers', 'firstName lastName phone designation status')
-      .populate('partTimeDrivers', 'firstName lastName phone status');
-    return res.json({ schedule: schedule || { date: req.params.date, fullTimeDrivers: [], partTimeDrivers: [] } });
+    const schedule = await DaySchedule.findOne({ date: req.params.date }).populate(SCHEDULE_POPULATE);
+    return res.json({ schedule: schedule || { date: req.params.date, fullTimeDrivers: [], partTimeDrivers: [], partTimeAssignments: [] } });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 });
 
-router.put('/schedule/:date', requireHRAuth, async (req, res) => {
+// HR only: assign drivers (and, for part-timers, a venue + pay for that day)
+router.put('/schedule/:date', requireHRAuth, requireRole('hr'), async (req, res) => {
   try {
-    const { fullTimeDrivers = [], partTimeDrivers = [], notes = '' } = req.body;
+    const { fullTimeDrivers = [], partTimeAssignments, partTimeDrivers = [], notes = '' } = req.body;
+    const update = { date: req.params.date, fullTimeDrivers, notes };
+
+    if (Array.isArray(partTimeAssignments)) {
+      const seen = new Set();
+      const assignments = [];
+      for (const a of partTimeAssignments) {
+        if (!a.driver) continue;
+        if (seen.has(String(a.driver))) return res.status(400).json({ message: 'A driver can only be assigned once per day' });
+        seen.add(String(a.driver));
+        if (!a.venue) return res.status(400).json({ message: 'Select a venue for every assigned driver' });
+        const amount = Number(a.amount);
+        if (a.amount === '' || a.amount === null || a.amount === undefined || !Number.isFinite(amount) || amount < 0) {
+          return res.status(400).json({ message: 'Enter a valid payment amount for every assigned driver' });
+        }
+        const venue = await Venue.findById(a.venue);
+        if (!venue) return res.status(400).json({ message: 'Selected venue no longer exists' });
+        assignments.push({ driver: a.driver, venue: venue._id, venueName: venue.name, amount });
+      }
+      update.partTimeAssignments = assignments;
+      update.partTimeDrivers = assignments.map(a => a.driver);
+    } else {
+      update.partTimeDrivers = partTimeDrivers;
+    }
+
     const schedule = await DaySchedule.findOneAndUpdate(
-      { date: req.params.date },
-      { date: req.params.date, fullTimeDrivers, partTimeDrivers, notes },
-      { upsert: true, new: true }
-    )
-      .populate('fullTimeDrivers', 'firstName lastName phone designation status')
-      .populate('partTimeDrivers', 'firstName lastName phone status');
+      { date: req.params.date }, update, { upsert: true, new: true }
+    ).populate(SCHEDULE_POPULATE);
     return res.json({ success: true, schedule });
   } catch (err) {
     return res.status(500).json({ message: err.message });
@@ -721,10 +754,115 @@ router.get('/schedule', requireHRAuth, async (req, res) => {
     const start = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDay = new Date(year, month, 0).getDate();
     const end = `${year}-${String(month).padStart(2, '0')}-${endDay}`;
-    const schedules = await DaySchedule.find({ date: { $gte: start, $lte: end } })
-      .populate('fullTimeDrivers', 'firstName lastName')
-      .populate('partTimeDrivers', 'firstName lastName');
+    const schedules = await DaySchedule.find({ date: { $gte: start, $lte: end } }).populate(SCHEDULE_POPULATE);
     return res.json({ schedules });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── VENUES (HR manages, accountant can read) ─────────────────────────────────
+
+router.get('/venues', requireHRAuth, async (req, res) => {
+  try {
+    const filter = req.query.active === 'true' ? { active: true } : {};
+    const venues = await Venue.find(filter).sort({ name: 1 });
+    return res.json({ venues });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/venues', requireHRAuth, requireRole('hr'), async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).json({ message: 'Venue name is required' });
+    const exists = await Venue.findOne({ name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+    if (exists) return res.status(400).json({ message: 'A venue with this name already exists' });
+    const venue = await Venue.create({ name, address: req.body.address || '' });
+    return res.json({ success: true, venue });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.put('/venues/:id', requireHRAuth, requireRole('hr'), async (req, res) => {
+  try {
+    const venue = await Venue.findById(req.params.id);
+    if (!venue) return res.status(404).json({ message: 'Venue not found' });
+    if (req.body.name !== undefined) {
+      if (!String(req.body.name).trim()) return res.status(400).json({ message: 'Venue name is required' });
+      venue.name = req.body.name;
+    }
+    if (req.body.address !== undefined) venue.address = req.body.address;
+    if (req.body.active !== undefined) venue.active = !!req.body.active;
+    await venue.save();
+    return res.json({ success: true, venue });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// A venue that was ever assigned is only deactivated, so past pay records keep their venue
+router.delete('/venues/:id', requireHRAuth, requireRole('hr'), async (req, res) => {
+  try {
+    const used = await DaySchedule.exists({ 'partTimeAssignments.venue': req.params.id });
+    if (used) {
+      await Venue.findByIdAndUpdate(req.params.id, { active: false });
+      return res.json({ success: true, deactivated: true });
+    }
+    await Venue.findByIdAndDelete(req.params.id);
+    return res.json({ success: true, deleted: true });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// HR / accountant: part-time assignments joined with attendance for a date range
+router.get('/analysis/parttime', requireHRAuth, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const re = /^\d{4}-\d{2}-\d{2}$/;
+    if (!re.test(from || '') || !re.test(to || '')) return res.status(400).json({ message: 'from and to (YYYY-MM-DD) are required' });
+
+    const schedules = await DaySchedule.find({ date: { $gte: from, $lte: to }, 'partTimeAssignments.0': { $exists: true } })
+      .populate('partTimeAssignments.driver', 'firstName lastName phone')
+      .populate('partTimeAssignments.venue', 'name');
+    const punches = await PartTimePunch.find({ date: { $gte: from, $lte: to } }).populate('driver', 'firstName lastName phone');
+
+    const punchByKey = new Map(punches.map(p => [`${p.driver?.id || p.driver}_${p.date}`, p]));
+    const assignedKeys = new Set();
+    const rows = [];
+    schedules.forEach(sc => {
+      sc.partTimeAssignments.forEach(a => {
+        if (!a.driver) return; // driver was deleted
+        const key = `${a.driver.id}_${sc.date}`;
+        assignedKeys.add(key);
+        const p = punchByKey.get(key);
+        rows.push({
+          date: sc.date,
+          driverId: a.driver.id,
+          driverName: `${a.driver.firstName} ${a.driver.lastName}`,
+          phone: a.driver.phone,
+          venueName: a.venue?.name || a.venueName || '—',
+          amount: a.amount,
+          punchInTime: p?.punchInTime || null,
+          punchOutTime: p?.punchOutTime || null,
+        });
+      });
+    });
+
+    const unassignedPunches = punches
+      .filter(p => p.driver && !assignedKeys.has(`${p.driver.id}_${p.date}`))
+      .map(p => ({
+        date: p.date,
+        driverId: p.driver.id,
+        driverName: `${p.driver.firstName} ${p.driver.lastName}`,
+        punchInTime: p.punchInTime || null,
+        punchOutTime: p.punchOutTime || null,
+      }));
+
+    return res.json({ from, to, rows, unassignedPunches });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -763,8 +901,10 @@ router.post(
       const { lat, lng, address } = req.body;
       const location = { lat: lat ? Number(lat) : null, lng: lng ? Number(lng) : null, address: address || '' };
 
+      const emp = await Employee.findById(employeeId).select('venue');
       record = await PunchIn.create({
         employee: employeeId,
+        venue: emp?.venue || '',
         date: today,
         punchInTime: new Date(),
         photoUrl,
@@ -986,6 +1126,7 @@ router.post(
           punchInTime: new Date(),
           location,
           punchInPhotoUrl: photoUrl,
+          venue: (await assignmentFor(driverId, today))?.venueName || '',
         });
       } else if (action === 'punchout') {
         if (!punch) return res.status(400).json({ message: 'Punch in first' });
@@ -1019,7 +1160,7 @@ router.post(
   }
 );
 
-// PT Driver: get schedules for a month (which days they are assigned)
+// PT Driver: get own assigned days for a month, with venue + pay for each
 router.get('/schedule/parttime/me', requirePartTimeDriverAuth, async (req, res) => {
   try {
     const { month, year } = req.query;
@@ -1027,14 +1168,20 @@ router.get('/schedule/parttime/me', requirePartTimeDriverAuth, async (req, res) 
     const start = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDay = new Date(year, month, 0).getDate();
     const end = `${year}-${String(month).padStart(2, '0')}-${endDay}`;
-    // Find all schedules that include this driver
     const schedules = await DaySchedule.find({
       date: { $gte: start, $lte: end },
       partTimeDrivers: req.ptDriver.id,
-    })
-      .populate('fullTimeDrivers', 'firstName lastName phone')
-      .populate('partTimeDrivers', 'firstName lastName phone');
-    return res.json({ schedules });
+    });
+    return res.json({
+      schedules: schedules.map(sc => {
+        const mine = sc.partTimeAssignments.find(a => String(a.driver) === String(req.ptDriver.id));
+        return {
+          date: sc.date,
+          notes: sc.notes,
+          myAssignment: mine ? { venueName: mine.venueName, amount: mine.amount } : null,
+        };
+      }),
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

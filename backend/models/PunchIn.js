@@ -6,6 +6,7 @@ const punchInSchema = new mongoose.Schema(
     date: { type: String, required: true }, // YYYY-MM-DD format
     punchInTime: { type: Date },
     punchOutTime: { type: Date },
+    venue: { type: String, default: '' }, // employee's fixed venue at punch time
     photoUrl: { type: String, default: '' }, // Cloudinary URL
     cloudinaryPublicId: { type: String, default: '' },
     location: {

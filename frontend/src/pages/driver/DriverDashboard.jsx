@@ -242,6 +242,16 @@ export default function DriverDashboard() {
               )}
             </div>
 
+            {user?.venue ? (
+              <div style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.9rem' }}>
+                📍 Your venue: <strong>{user.venue}</strong>
+              </div>
+            ) : (
+              <div style={{ background: 'var(--warning-bg)', color: 'var(--warning)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.85rem' }}>
+                No venue is set on your profile. Please contact HR.
+              </div>
+            )}
+
             {/* Quick stats */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
               {[
@@ -263,6 +273,16 @@ export default function DriverDashboard() {
         {!locked && tab === 'punchin' && (
           <div>
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 20 }}>📍 Punch In</h1>
+
+            {user?.venue ? (
+              <div style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.9rem' }}>
+                📍 Your venue: <strong>{user.venue}</strong>
+              </div>
+            ) : (
+              <div style={{ background: 'var(--warning-bg)', color: 'var(--warning)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.85rem' }}>
+                No venue is set on your profile. Please contact HR.
+              </div>
+            )}
 
             {todayPunch ? (
               <div style={{ textAlign: 'center', padding: 40, background: 'var(--success-bg)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--success)' }}>

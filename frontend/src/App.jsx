@@ -24,6 +24,7 @@ import HROverviewPage from './pages/hr/HROverviewPage';
 import HREmployeesPage from './pages/hr/HREmployeesPage';
 import HRPartTimePage from './pages/hr/HRPartTimePage';
 import HRCalendarPage from './pages/hr/HRCalendarPage';
+import HRVenuesPage from './pages/hr/HRVenuesPage';
 
 // Accountant Pages
 import AccountantLoginPage from './pages/accountant/AccountantLoginPage';
@@ -32,6 +33,7 @@ import AccountantVerificationPage from './pages/accountant/AccountantVerificatio
 import AccountantEmployeesPage from './pages/accountant/AccountantEmployeesPage';
 import AccountantAttendancePage from './pages/accountant/AccountantAttendancePage';
 import AccountantLeavesPage from './pages/accountant/AccountantLeavesPage';
+import AccountantPTAnalysisPage from './pages/accountant/AccountantPTAnalysisPage';
 
 // Full-Time Driver Pages
 import DriverLoginPage from './pages/driver/DriverLoginPage';
@@ -226,6 +228,7 @@ export default function App() {
                 <Route path="employees" element={<HREmployeesPage />} />
                 <Route path="parttime" element={<HRPartTimePage />} />
                 <Route path="calendar" element={<HRCalendarPage />} />
+                <Route path="venues" element={<HRVenuesPage />} />
               </Route>
 
               {/* ─── ACCOUNTANT PORTAL ROUTES ─── */}
@@ -243,6 +246,7 @@ export default function App() {
                 <Route path="employees" element={<AccountantEmployeesPage />} />
                 <Route path="calendar" element={<HRCalendarPage />} />
                 <Route path="attendance" element={<AccountantAttendancePage />} />
+                <Route path="parttime-analysis" element={<AccountantPTAnalysisPage />} />
                 <Route path="leaves" element={<AccountantLeavesPage />} />
                 <Route path="bookings" element={<BookingsPage />} />
                 <Route path="revenue" element={<RevenuePage />} />

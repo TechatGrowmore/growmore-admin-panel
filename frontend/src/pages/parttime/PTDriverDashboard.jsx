@@ -33,6 +33,7 @@ export default function PTDriverDashboard() {
   const [profile, setProfile] = useState(null);
   const [punches, setPunches] = useState([]);
   const [todayPunch, setTodayPunch] = useState(null);
+  const [assignments, setAssignments] = useState({}); // date -> { venueName, amount }
   const [scheduledDates, setScheduledDates] = useState([]); // dates this driver is scheduled
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState('');
@@ -83,6 +84,11 @@ export default function PTDriverDashboard() {
       if (res.ok) {
         const d = await res.json();
         setScheduledDates((d.schedules || []).map(s => s.date));
+        setAssignments(prev => {
+          const next = { ...prev };
+          (d.schedules || []).forEach(s => { if (s.myAssignment) next[s.date] = s.myAssignment; });
+          return next;
+        });
       }
     } catch (e) { console.error(e); }
   };
@@ -300,6 +306,19 @@ export default function PTDriverDashboard() {
                 )}
               </div>
 
+              {assignments[todayStr] && (
+                <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface-sunken)', border: '1px solid var(--border)', marginBottom: 16, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>TODAY'S VENUE</div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem' }}>📍 {assignments[todayStr].venueName}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>TODAY'S PAY</div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--success)' }}>{`₹${Number(assignments[todayStr].amount).toLocaleString('en-IN')}`}</div>
+                  </div>
+                </div>
+              )}
+
               {/* Status Banner */}
               <div style={{
                 padding: '16px', borderRadius: 12,
@@ -398,6 +417,11 @@ export default function PTDriverDashboard() {
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                               {dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                             </div>
+                            {assignments[d] && (
+                              <div style={{ fontSize: '0.78rem', fontWeight: 600, marginTop: 2 }}>
+                                📍 {assignments[d].venueName} · {`₹${Number(assignments[d].amount).toLocaleString('en-IN')}`}
+                              </div>
+                            )}
                           </div>
                           <span className={`badge ${isToday ? 'badge-success' : 'badge-info'}`} style={{ fontSize: '0.7rem' }}>
                             {isToday ? 'Active' : 'Scheduled'}
@@ -417,6 +441,16 @@ export default function PTDriverDashboard() {
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 20 }}>
               {isPunchedIn && !isPunchedOut ? '🚪 Punch Out' : '📍 Punch In'}
             </h1>
+
+            {assignments[todayStr] ? (
+              <div style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.9rem' }}>
+                📍 Your venue today: <strong>{assignments[todayStr].venueName}</strong> · Pay <strong>{`₹${Number(assignments[todayStr].amount).toLocaleString('en-IN')}`}</strong>
+              </div>
+            ) : (
+              <div style={{ background: 'var(--warning-bg)', color: 'var(--warning)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.85rem' }}>
+                No venue has been assigned to you for today yet.
+              </div>
+            )}
 
             {/* Already completed */}
             {isPunchedOut ? (
@@ -656,6 +690,7 @@ export default function PTDriverDashboard() {
                             {p.punchInTime ? `In: ${new Date(p.punchInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : '—'}
                             {p.punchOutTime ? ` · Out: ${new Date(p.punchOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ' · No punch-out'}
                           </div>
+                          {p.venue && <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 2 }}>🏢 {p.venue}</div>}
                           {p.location?.address && (
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>
                               📍 {p.location.address.slice(0, 60)}

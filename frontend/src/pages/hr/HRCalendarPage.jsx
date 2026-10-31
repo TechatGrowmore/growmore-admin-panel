@@ -95,6 +95,37 @@ export default function HRCalendarPage() {
     }));
   };
 
+  // Plain-text version of the day's part-time assignments, for sharing
+  const buildShareText = () => {
+    const dateLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const saved = schedules[selectedDate]?.partTimeAssignments || [];
+    const lines = (canEdit ? selectedSchedule.partTimeAssignments : saved).map((a, i) => {
+      const id = a.driver?.id || a.driver;
+      const d = allPartTime.find(x => x.id === id) || a.driver || {};
+      const name = `${d.firstName || ''} ${d.lastName || ''}`.trim() || 'Driver';
+      const venue = venues.find(v => v.id === (a.venue?.id || a.venue))?.name || a.venueName || '—';
+      return `${i + 1}. ${name} - ${venue} - ₹${Number(a.amount || 0).toLocaleString('en-IN')}`;
+    });
+    return ['DATE - ' + dateLabel, 'Part Time Drivers :', ...lines].join('\n');
+  };
+
+  const shareCount = canEdit ? selectedSchedule?.partTimeAssignments.length : (schedules[selectedDate]?.partTimeAssignments || []).length;
+
+  const copyShareText = async () => {
+    const text = buildShareText();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    showToast('Schedule copied!');
+  };
+
+  const shareWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(buildShareText())}`, '_blank', 'noopener');
+  };
+
   const saveSchedule = async () => {
     const incomplete = selectedSchedule.partTimeAssignments.find(a => !a.venue || a.amount === '' || Number(a.amount) < 0);
     if (incomplete) { showToast('Select a venue and enter the payment for every part-time driver'); return; }
@@ -285,6 +316,12 @@ export default function HRCalendarPage() {
               </div>
             </div>
             <div className="modal-footer">
+              {shareCount > 0 && (
+                <>
+                  <button className="btn-secondary" onClick={copyShareText}>📋 Copy</button>
+                  <button className="btn-secondary" onClick={shareWhatsApp}>💬 WhatsApp</button>
+                </>
+              )}
               <button className="btn-secondary" onClick={() => setSelectedDate(null)}>{canEdit ? 'Cancel' : 'Close'}</button>
               {canEdit && (
                 <button className="btn-primary" style={{ width: 'auto', padding: '9px 20px' }} onClick={saveSchedule} disabled={saving}>

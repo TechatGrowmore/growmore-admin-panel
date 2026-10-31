@@ -272,29 +272,6 @@ export default function HRCalendarPage() {
                 )}
               </div>
 
-              {/* Full-time */}
-              <div style={{ marginTop: 20 }}>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 10, color: 'var(--accent)' }}>
-                  👤 Full-Time Drivers <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(venue and pay are fixed on their profile)</span>
-                </h3>
-                {allEmployees.length === 0 ? (
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No verified FT drivers</p>
-                ) : (
-                  <div className="site-select-box">
-                    {allEmployees.map(emp => (
-                      <label key={emp.id} className="site-checkbox-item">
-                        <input type="checkbox" checked={selectedSchedule.fullTimeDrivers.includes(emp.id)} disabled={!canEdit}
-                          onChange={() => toggleDriver(emp.id)} style={{ accentColor: 'var(--accent)' }} />
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{emp.firstName} {emp.lastName}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{emp.phone}{emp.venue ? ` · ${emp.venue}` : ''}</div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               <div className="form-group" style={{ marginTop: 16 }}>
                 <label>Notes for this day</label>
                 <textarea className="form-input" rows={2} value={selectedSchedule.notes}
@@ -303,7 +280,7 @@ export default function HRCalendarPage() {
               </div>
 
               <div style={{ marginTop: 12, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                {selectedSchedule.fullTimeDrivers.length} FT + {selectedSchedule.partTimeAssignments.length} PT drivers scheduled
+                {selectedSchedule.partTimeAssignments.length} part-time driver{selectedSchedule.partTimeAssignments.length === 1 ? '' : 's'} scheduled
                 {selectedSchedule.partTimeAssignments.length > 0 && ` · PT total ${money(selectedSchedule.partTimeAssignments.reduce((t, a) => t + (Number(a.amount) || 0), 0))}`}
               </div>
             </div>

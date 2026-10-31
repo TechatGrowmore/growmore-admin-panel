@@ -240,6 +240,16 @@ function hashPassword(str) {
 
 // ─── PUBLIC ROUTES ────────────────────────────────────────────────────────────
 
+// Public: active venue names for the registration form dropdown
+router.get('/public/venues', async (req, res) => {
+  try {
+    const venues = await Venue.find({ active: true }).sort({ name: 1 }).select('name');
+    return res.json({ venues: venues.map(v => ({ id: v.id, name: v.name })) });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 // Public: submit full-time registration form
 router.post(
   '/public/fulltime',

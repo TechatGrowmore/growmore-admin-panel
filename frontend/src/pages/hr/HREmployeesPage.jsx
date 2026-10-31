@@ -39,6 +39,14 @@ function EmployeeModal({ emp, onClose, onSave, onChanged }) {
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
   const [busyKey, setBusyKey] = useState('');
+  const [venues, setVenues] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/employees/venues?active=true', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : { venues: [] }))
+      .then(d => setVenues(d.venues || []))
+      .catch(() => {});
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -207,7 +215,14 @@ function EmployeeModal({ emp, onClose, onSave, onChanged }) {
           {step === 5 && (
             <div style={grid}>
               {text('designation', 'Designation')}
-              {text('venue', 'Venue')}
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Venue</label>
+                <select className="form-input" name="venue" value={form.venue || ''} onChange={handleChange}>
+                  <option value="">Select venue</option>
+                  {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                  {form.venue && !venues.some(v => v.name === form.venue) && <option value={form.venue}>{form.venue}</option>}
+                </select>
+              </div>
               {text('department', 'Department')}
               {text('salary', 'Monthly Salary (₹)', 'number')}
               {text('joiningDate', 'Joining Date', 'date')}

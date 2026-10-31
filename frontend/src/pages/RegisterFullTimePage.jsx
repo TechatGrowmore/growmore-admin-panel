@@ -51,11 +51,19 @@ export default function RegisterFullTimePage() {
     photo: null,
   });
 
+  const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchingToken, setFetchingToken] = useState(!!token);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/employees/public/venues')
+      .then(r => r.json())
+      .then(d => setVenues(d.venues || []))
+      .catch(() => {});
+  }, []);
 
   // If token is provided, fetch pre-filled data
   useEffect(() => {
@@ -355,7 +363,11 @@ export default function RegisterFullTimePage() {
               </div>
               <div className="form-group">
                 <label>Venue <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input className="form-input" name="venue" value={formData.venue} onChange={handleChange} required placeholder="Site / venue where you will work" />
+                <select className="form-input" name="venue" value={formData.venue} onChange={handleChange} required>
+                  <option value="">Select venue</option>
+                  {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                </select>
+                {venues.length === 0 && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>No venues available yet. Please contact HR.</p>}
               </div>
             </div>
           </div>

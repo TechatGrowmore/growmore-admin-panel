@@ -169,7 +169,9 @@ export default function LoginPage() {
           <span style={{ color: 'var(--border)' }}>•</span>
           <a href="/accountant/login" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Accountant</a>
           <span style={{ color: 'var(--border)' }}>•</span>
-          <a href="/driver/login" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Driver Login</a>
+          <a href="/driver/login" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>FT Driver</a>
+          <span style={{ color: 'var(--border)' }}>•</span>
+          <a href="/parttime/login" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>PT Driver</a>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: '0.75rem', color: 'var(--text-muted)' }}>

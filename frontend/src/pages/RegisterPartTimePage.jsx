@@ -11,10 +11,17 @@ export default function RegisterPartTimePage() {
     email: '',
     address: '',
     aadharNumber: '',
+    bankName: '',
+    bankAccountNumber: '',
+    bankIfsc: '',
+    bankAccountHolderName: '',
+    bankBranchName: '',
     declarationAccepted: false,
   });
 
   const [aadharDoc, setAadharDoc] = useState(null);
+  const [licenseDoc, setLicenseDoc] = useState(null);
+  const [passbookDoc, setPassbookDoc] = useState(null);
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const registrationDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -64,6 +71,17 @@ export default function RegisterPartTimePage() {
     }
   };
 
+  const pickDoc = (e, setter, name) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError(`${name} must be smaller than 10MB`);
+        return;
+      }
+      setter(file);
+    }
+  };
+
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -90,6 +108,11 @@ export default function RegisterPartTimePage() {
       return;
     }
 
+    if (!passbookDoc) {
+      setError('Please upload a photo of your bank passbook.');
+      return;
+    }
+
     if (!aadharDoc) {
       setError('Please upload your Aadhar Card document.');
       return;
@@ -112,6 +135,8 @@ export default function RegisterPartTimePage() {
       }
       fd.append('aadharDoc', aadharDoc);
       fd.append('photo', photo);
+      if (licenseDoc) fd.append('licenseDoc', licenseDoc);
+      fd.append('passbookDoc', passbookDoc);
 
       const res = await fetch('/api/employees/public/parttime', {
         method: 'POST',
@@ -298,16 +323,60 @@ export default function RegisterPartTimePage() {
                 <input type="file" accept="image/*,application/pdf" onChange={handleFileChange} style={{ fontSize: '0.85rem', marginTop: 4 }} />
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>Clear photo or PDF copy of front &amp; back</p>
               </div>
+              <div className="form-group">
+                <label>Upload Driving License (Photo / PDF)</label>
+                <input type="file" accept="image/*,application/pdf" onChange={(e) => pickDoc(e, setLicenseDoc, 'Driving license')} style={{ fontSize: '0.85rem', marginTop: 4 }} />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>Front &amp; back of your license</p>
+              </div>
             </div>
           </div>
 
-          {/* Section 3: Declaration */}
+          {/* Section 3: Bank Details */}
+          <div style={{
+            background: 'var(--surface)', borderRadius: 16, padding: '28px 32px', marginBottom: 24,
+            boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
+          }}>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>3</span>
+              Bank Account Details (For Payments)
+            </h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+              <div className="form-group">
+                <label>Bank Name <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankName" value={formData.bankName} onChange={handleChange} required placeholder="e.g. State Bank of India, HDFC" />
+              </div>
+              <div className="form-group">
+                <label>Account Number <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} required placeholder="Bank account number" />
+              </div>
+              <div className="form-group">
+                <label>IFSC Code <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankIfsc" style={{ textTransform: 'uppercase' }} value={formData.bankIfsc} onChange={handleChange} required placeholder="e.g. SBIN0001234" />
+              </div>
+              <div className="form-group">
+                <label>Account Holder Name <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankAccountHolderName" value={formData.bankAccountHolderName} onChange={handleChange} required placeholder="Name as per bank records" />
+              </div>
+              <div className="form-group">
+                <label>Branch Name <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankBranchName" value={formData.bankBranchName} onChange={handleChange} required placeholder="e.g. Shivajinagar, Pune" />
+              </div>
+              <div className="form-group">
+                <label>Passbook Photo <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input type="file" accept="image/*,application/pdf" onChange={(e) => pickDoc(e, setPassbookDoc, 'Passbook photo')} style={{ fontSize: '0.85rem', marginTop: 4 }} />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>First page showing name, account no. &amp; IFSC</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Declaration */}
           <div style={{
             background: 'var(--surface)', borderRadius: 16, padding: '28px 32px', marginBottom: 28,
             boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
           }}>
             <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>3</span>
+              <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>4</span>
               Driver Declaration
             </h2>
 

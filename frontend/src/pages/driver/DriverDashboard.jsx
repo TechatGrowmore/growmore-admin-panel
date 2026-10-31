@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverAuth } from '../../context/DriverAuthContext';
 import LazyPhoto from '../../components/LazyPhoto';
+import DriverProfileView from '../../components/DriverProfileView';
 import growmoreLogo from '../../assets/Growmore-logo.jpg';
 
 const DAYS_OF_WEEK = ['Su','Mo','Tu','We','Th','Fr','Sa'];
@@ -424,24 +425,7 @@ export default function DriverDashboard() {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{user?.designation || 'Driver'} · {user?.department}</p>
               <span className="badge badge-success" style={{ marginTop: 8 }}>Verified Employee</span>
             </div>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {[
-                ['📱 Phone', user?.phone],
-                ['📧 Email', user?.email || '—'],
-                ['🎂 Date of Birth', user?.dob ? new Date(user.dob).toLocaleDateString('en-IN') : '—'],
-                ['🩸 Blood Group', user?.bloodGroup || '—'],
-                ['🏠 Address', [user?.addressLine1, user?.city, user?.state].filter(Boolean).join(', ') || '—'],
-                ['🪪 Aadhar No.', user?.aadharNumber ? `****  ****  ${user.aadharNumber.slice(-4)}` : '—'],
-                ['📄 PAN', user?.panNumber || '—'],
-                ['💼 Designation', user?.designation || '—'],
-                ['📅 Joining Date', user?.joiningDate ? new Date(user.joiningDate).toLocaleDateString('en-IN') : '—'],
-              ].map(([label, val]) => (
-                <div key={label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{label}</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{val}</span>
-                </div>
-              ))}
-            </div>
+            <DriverProfileView kind="fulltime" />
           </div>
         )}
       </main>

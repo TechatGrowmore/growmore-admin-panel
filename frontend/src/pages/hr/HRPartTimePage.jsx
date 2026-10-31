@@ -1,22 +1,42 @@
 import { useState, useEffect } from 'react';
 import LazyPhoto from '../../components/LazyPhoto';
+import ProfileCompletion from '../../components/ProfileCompletion';
+import DocumentsPanel, { reviewDocument } from '../../components/DocumentsPanel';
 
-function PartTimeModal({ driver, onClose, onSave }) {
+const PT_SKIP_KEYS = ['id', 'docReviews', 'documents', 'profileCompletion', 'createdAt', 'updatedAt', 'status',
+  'photoUrl', 'aadharDocUrl', 'licenseDocUrl', 'passbookDocUrl', 'fullName', 'registrationDate',
+  'rejectionRemarks', 'isLoginEnabled', 'publicFormToken', 'submittedViaPublicForm', 'punchToken'];
+
+const PT_FILE_FIELDS = [
+  ['photo', 'Photograph', 'photoUrl', 'image/*'],
+  ['aadharDoc', 'Aadhar Document', 'aadharDocUrl', 'image/*,application/pdf'],
+  ['licenseDoc', 'Driving License', 'licenseDocUrl', 'image/*,application/pdf'],
+  ['passbookDoc', 'Bank Passbook', 'passbookDocUrl', 'image/*,application/pdf'],
+];
+
+function PartTimeModal({ driver, onClose, onSave, onChanged }) {
+  const [rec, setRec] = useState(driver || null);
   const [form, setForm] = useState({
-    firstName: '', lastName: '', phone: '', email: '', aadharNumber: '', address: '', ...driver,
+    firstName: '', lastName: '', phone: '', email: '', aadharNumber: '', address: '',
+    bankName: '', bankAccountHolderName: '', bankAccountNumber: '', bankIfsc: '', bankBranchName: '', ...driver,
   });
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [busyKey, setBusyKey] = useState('');
 
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const handleFile = e => setFiles(f => ({ ...f, [e.target.name]: e.target.files[0] }));
 
   const handleSubmit = async () => {
     setLoading(true); setError('');
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => { if (v !== null && v !== undefined) fd.append(k, v); });
-      if (file) fd.append('aadharDoc', file);
+      Object.entries(form).forEach(([k, v]) => {
+        if (PT_SKIP_KEYS.includes(k) || v === null || v === undefined || typeof v === 'object') return;
+        fd.append(k, v);
+      });
+      Object.entries(files).forEach(([k, v]) => { if (v) fd.append(k, v); });
 
       const url = driver?.id ? `/api/employees/parttime/${driver.id}` : '/api/employees/parttime';
       const method = driver?.id ? 'PUT' : 'POST';
@@ -27,35 +47,59 @@ function PartTimeModal({ driver, onClose, onSave }) {
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
+  const review = async (docKey, status, remarks) => {
+    setBusyKey(docKey); setError('');
+    try {
+      setRec(await reviewDocument('parttime', driver.id, docKey, status, remarks));
+      onChanged?.();
+    } catch (err) { setError(err.message); } finally { setBusyKey(''); }
+  };
+
+  const field = ([name, label, type = 'text']) => (
+    <div className="form-group" key={name} style={{ margin: 0, gridColumn: name === 'address' ? '1/-1' : 'auto' }}>
+      <label>{label}</label>
+      <input className="form-input" type={type} name={name} value={form[name] || ''} onChange={handleChange} placeholder={label.replace(' *', '')} />
+    </div>
+  );
+  const title = (t) => <div style={{ gridColumn: '1/-1', fontWeight: 700, fontSize: '0.85rem', color: 'var(--accent)', marginTop: 4 }}>{t}</div>;
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-content" style={{ maxWidth: 520 }}>
+      <div className="modal-content" style={{ maxWidth: 680 }}>
         <div className="modal-header">
           <h2>{driver?.id ? 'Edit Part-Time Driver' : 'Register Part-Time Driver'}</h2>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
-        <div className="modal-body">
+        <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
           {error && <div className="login-error">{error}</div>}
+          {rec?.profileCompletion && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Profile completion (documents count once approved)</div>
+              <ProfileCompletion completion={rec.profileCompletion} showMissing />
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {[['firstName','First Name *','text'],['lastName','Last Name *','text'],
-              ['phone','Phone *','tel'],['email','Email','email'],
-              ['aadharNumber','Aadhar Number','text'],['address','Address','text']].map(([name,label,type]) => (
-              <div className="form-group" key={name} style={{ margin: 0, gridColumn: name === 'address' ? '1/-1' : 'auto' }}>
+            {title('Personal Details')}
+            {[['firstName', 'First Name *'], ['lastName', 'Last Name *'], ['phone', 'Phone *', 'tel'], ['email', 'Email', 'email'],
+              ['aadharNumber', 'Aadhar Number'], ['address', 'Address']].map(field)}
+            {title('Bank Account Details')}
+            {[['bankName', 'Bank Name'], ['bankAccountHolderName', 'Account Holder Name'], ['bankAccountNumber', 'Account Number'],
+              ['bankIfsc', 'IFSC Code'], ['bankBranchName', 'Branch Name']].map(field)}
+            {title('Documents')}
+            {PT_FILE_FIELDS.map(([name, label, urlKey, accept]) => (
+              <div className="form-group" key={name} style={{ margin: 0 }}>
                 <label>{label}</label>
-                <input className="form-input" type={type} name={name} value={form[name]||''} onChange={handleChange} placeholder={label.replace(' *','')} />
+                <input type="file" name={name} accept={accept} onChange={handleFile}
+                  style={{ padding: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', width: '100%', fontSize: '0.8rem' }} />
+                {driver?.[urlKey] && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>A file is already uploaded. Choosing a new one resets its approval.</div>}
               </div>
             ))}
-            <div className="form-group" style={{ margin: 0, gridColumn: '1/-1' }}>
-              <label>Aadhar Document (PDF/Image)</label>
-              <input type="file" accept="image/*,application/pdf" onChange={e => setFile(e.target.files[0])}
-                style={{ padding: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', width: '100%', fontSize: '0.8rem' }} />
-              {form.aadharDocUrl && (
-                <a href={form.aadharDocUrl} target="_blank" rel="noreferrer"
-                  style={{ fontSize: '0.75rem', color: 'var(--accent)', marginTop: 4, display: 'block' }}>
-                  View uploaded document ↗
-                </a>
-              )}
-            </div>
+            {driver?.id && rec?.documents && (
+              <div style={{ gridColumn: '1/-1' }}>
+                {title('Document approval')}
+                <DocumentsPanel documents={rec.documents} mode="review" onReview={review} busyKey={busyKey} />
+              </div>
+            )}
           </div>
         </div>
         <div className="modal-footer">
@@ -158,13 +202,13 @@ export default function HRPartTimePage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>#</th><th>Name</th><th>Phone</th><th>Aadhar</th><th>Photo</th><th>Status</th>
+                <th>#</th><th>Name</th><th>Phone</th><th>Aadhar</th><th>Photo</th><th>Profile</th><th>Status</th>
                 <th>Registered</th><th>Punch Link</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {drivers.length === 0 ? (
-                <tr><td colSpan="9" style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>No drivers found</td></tr>
+                <tr><td colSpan="10" style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>No drivers found</td></tr>
               ) : drivers.map((d, i) => (
                 <tr key={d.id}>
                   <td>{i + 1}</td>
@@ -175,6 +219,7 @@ export default function HRPartTimePage() {
                   <td>{d.phone}</td>
                   <td>{d.aadharDocUrl ? <a href={d.aadharDocUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: '0.8rem' }}>View Doc ↗</a> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                   <td><LazyPhoto src={d.photoUrl} size={90} /></td>
+                  <td><ProfileCompletion completion={d.profileCompletion} showMissing compact /></td>
                   <td>{statusBadge(d.status)}</td>
                   <td style={{ fontSize: '0.78rem' }}>{new Date(d.registrationDate || d.createdAt).toLocaleDateString('en-IN')}</td>
                   <td>
@@ -207,7 +252,7 @@ export default function HRPartTimePage() {
 
       {showModal && (
         <PartTimeModal driver={selectedDriver} onClose={() => setShowModal(false)}
-          onSave={(saved) => { showToast('Driver saved!'); setShowModal(false); loadDrivers(); }} />
+          onChanged={loadDrivers} onSave={(saved) => { showToast('Driver saved!'); setShowModal(false); loadDrivers(); }} />
       )}
 
       {remarkModal && (

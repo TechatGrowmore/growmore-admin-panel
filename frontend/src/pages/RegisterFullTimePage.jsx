@@ -20,11 +20,22 @@ export default function RegisterFullTimePage() {
     aadharNumber: '',
     panNumber: '',
     designation: 'Driver',
+    venue: '',
+    aadharAddressLine1: '',
+    aadharAddressLine2: '',
+    aadharCity: '',
+    aadharState: '',
+    aadharPincode: '',
+    sameAsCurrent: false,
     emergencyContactName: '',
     emergencyContactPhone: '',
     bankName: '',
     bankAccountNumber: '',
     bankIfsc: '',
+    bankAccountHolderName: '',
+    bankBranchName: '',
+    pfNumber: '',
+    esicNumber: '',
     declarationAccepted: false,
   });
 
@@ -32,6 +43,8 @@ export default function RegisterFullTimePage() {
     aadharDoc: null,
     panDoc: null,
     photo: null,
+    licenseDoc: null,
+    passbookDoc: null,
   });
 
   const [previews, setPreviews] = useState({
@@ -72,6 +85,21 @@ export default function RegisterFullTimePage() {
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSameAsCurrent = (e) => {
+    const checked = e.target.checked;
+    setFormData(prev => ({
+      ...prev,
+      sameAsCurrent: checked,
+      ...(checked && {
+        aadharAddressLine1: prev.addressLine1,
+        aadharAddressLine2: prev.addressLine2,
+        aadharCity: prev.city,
+        aadharState: prev.state,
+        aadharPincode: prev.pincode,
+      }),
     }));
   };
 
@@ -117,6 +145,11 @@ export default function RegisterFullTimePage() {
       return;
     }
 
+    if (!files.passbookDoc) {
+      setError('Please upload a photo of your bank passbook.');
+      return;
+    }
+
     if (formData.aadharNumber.replace(/\D/g, '').length !== 12) {
       setError('Please enter a valid 12-digit Aadhar number.');
       return;
@@ -132,6 +165,7 @@ export default function RegisterFullTimePage() {
     try {
       const fd = new FormData();
       Object.keys(formData).forEach(key => {
+        if (key === 'sameAsCurrent') return;
         fd.append(key, formData[key]);
       });
       if (token) {
@@ -140,6 +174,8 @@ export default function RegisterFullTimePage() {
       if (files.photo) fd.append('photo', files.photo);
       if (files.aadharDoc) fd.append('aadharDoc', files.aadharDoc);
       if (files.panDoc) fd.append('panDoc', files.panDoc);
+      if (files.licenseDoc) fd.append('licenseDoc', files.licenseDoc);
+      fd.append('passbookDoc', files.passbookDoc);
 
       const res = await fetch('/api/employees/public/fulltime', {
         method: 'POST',
@@ -312,6 +348,10 @@ export default function RegisterFullTimePage() {
                 <label>Designation</label>
                 <input className="form-input" name="designation" value={formData.designation} onChange={handleChange} placeholder="e.g. Driver" />
               </div>
+              <div className="form-group">
+                <label>Venue <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="venue" value={formData.venue} onChange={handleChange} required placeholder="Site / venue where you will work" />
+              </div>
             </div>
           </div>
 
@@ -322,7 +362,7 @@ export default function RegisterFullTimePage() {
           }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>2</span>
-              Address Details
+              Current Address Details
             </h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
@@ -349,13 +389,52 @@ export default function RegisterFullTimePage() {
             </div>
           </div>
 
-          {/* Section 3: Identity & Document Uploads */}
+          {/* Section 3: Address as per Aadhar */}
           <div style={{
             background: 'var(--surface)', borderRadius: 16, padding: '28px 32px', marginBottom: 24,
             boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
           }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>3</span>
+              Address as per Aadhar Card
+            </h2>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, marginBottom: 16 }}>
+              <input type="checkbox" checked={formData.sameAsCurrent} onChange={handleSameAsCurrent} style={{ width: 18, height: 18, accentColor: 'var(--accent)' }} />
+              <span>Same as current address</span>
+            </label>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Address Line 1 <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="aadharAddressLine1" value={formData.aadharAddressLine1} onChange={handleChange} required placeholder="As printed on Aadhar card" />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Address Line 2</label>
+                <input className="form-input" name="aadharAddressLine2" value={formData.aadharAddressLine2} onChange={handleChange} placeholder="Locality, Area" />
+              </div>
+              <div className="form-group">
+                <label>City <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="aadharCity" value={formData.aadharCity} onChange={handleChange} required />
+              </div>
+              <div className="form-group">
+                <label>State <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="aadharState" value={formData.aadharState} onChange={handleChange} required />
+              </div>
+              <div className="form-group">
+                <label>Pincode <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="aadharPincode" maxLength={6} value={formData.aadharPincode} onChange={handleChange} required placeholder="6-digit pincode" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Identity & Document Uploads */}
+          <div style={{
+            background: 'var(--surface)', borderRadius: 16, padding: '28px 32px', marginBottom: 24,
+            boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
+          }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>4</span>
               Identity &amp; Government Documents
             </h2>
 
@@ -398,6 +477,13 @@ export default function RegisterFullTimePage() {
                 </div>
               </div>
 
+              {/* Driving License */}
+              <div className="form-group">
+                <label>Driving License</label>
+                <input type="file" accept="image/*,application/pdf" onChange={(e) => handleFileChange(e, 'licenseDoc')} style={{ fontSize: '0.85rem', marginTop: 8 }} />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>Photo or PDF of your driving license (front &amp; back)</p>
+              </div>
+
               {/* Emergency Contact */}
               <div className="form-group">
                 <label>Emergency Contact Name</label>
@@ -416,33 +502,71 @@ export default function RegisterFullTimePage() {
             boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
           }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>4</span>
+              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>5</span>
               Bank Account Details (For Salary &amp; Payroll)
             </h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
               <div className="form-group">
-                <label>Bank Name</label>
-                <input className="form-input" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g. State Bank of India, HDFC" />
+                <label>Bank Name <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankName" value={formData.bankName} onChange={handleChange} required placeholder="e.g. State Bank of India, HDFC" />
               </div>
               <div className="form-group">
-                <label>Account Number</label>
-                <input className="form-input" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} placeholder="Bank account number" />
+                <label>Account Number <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} required placeholder="Bank account number" />
               </div>
               <div className="form-group">
-                <label>IFSC Code</label>
-                <input className="form-input" name="bankIfsc" style={{ textTransform: 'uppercase' }} value={formData.bankIfsc} onChange={handleChange} placeholder="e.g. SBIN0001234" />
+                <label>IFSC Code <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankIfsc" style={{ textTransform: 'uppercase' }} value={formData.bankIfsc} onChange={handleChange} required placeholder="e.g. SBIN0001234" />
+              </div>
+              <div className="form-group">
+                <label>Account Holder Name <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankAccountHolderName" value={formData.bankAccountHolderName} onChange={handleChange} required placeholder="Name as per bank records" />
+              </div>
+              <div className="form-group">
+                <label>Branch Name <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input className="form-input" name="bankBranchName" value={formData.bankBranchName} onChange={handleChange} required placeholder="e.g. Shivajinagar, Pune" />
+              </div>
+              <div className="form-group">
+                <label>Passbook Photo <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input type="file" accept="image/*,application/pdf" onChange={(e) => handleFileChange(e, 'passbookDoc')} style={{ fontSize: '0.85rem', marginTop: 8 }} />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>First page of passbook showing name, account no. &amp; IFSC</p>
               </div>
             </div>
           </div>
 
-          {/* Section 5: Mandatory Declaration */}
+          {/* Section 6: PF & ESIC */}
+          <div style={{
+            background: 'var(--surface)', borderRadius: 16, padding: '28px 32px', marginBottom: 24,
+            boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
+          }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>6</span>
+              PF &amp; ESIC Details (Optional)
+            </h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+              <div className="form-group">
+                <label>PF Number</label>
+                <input className="form-input" name="pfNumber" value={formData.pfNumber} onChange={handleChange} placeholder="Provident Fund / UAN number" />
+              </div>
+              <div className="form-group">
+                <label>ESIC Number</label>
+                <input className="form-input" name="esicNumber" value={formData.esicNumber} onChange={handleChange} placeholder="ESIC insurance number" />
+              </div>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 12 }}>
+              You can submit without these. Your profile will show as incomplete until HR adds them.
+            </p>
+          </div>
+
+          {/* Section 7: Mandatory Declaration */}
           <div style={{
             background: 'var(--surface)', borderRadius: 16, padding: '28px 32px', marginBottom: 28,
             boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
           }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>5</span>
+              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>7</span>
               Applicant Declaration
             </h2>
 

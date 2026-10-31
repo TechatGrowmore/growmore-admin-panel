@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import LazyPhoto from '../../components/LazyPhoto';
+import ProfileCompletion from '../../components/ProfileCompletion';
+import DocumentsPanel, { reviewDocument } from '../../components/DocumentsPanel';
 
 export default function AccountantEmployeesPage() {
   const [employees, setEmployees] = useState([]);
@@ -12,6 +14,9 @@ export default function AccountantEmployeesPage() {
   const [empPunches, setEmpPunches] = useState([]);
   const [empLeaves, setEmpLeaves] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [docTarget, setDocTarget] = useState(null); // { kind, rec }
+  const [docBusy, setDocBusy] = useState('');
+  const [docError, setDocError] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -37,6 +42,17 @@ export default function AccountantEmployeesPage() {
     if (pRes.ok) { const d = await pRes.json(); setEmpPunches(d.punches || []); }
     if (lRes.ok) { const d = await lRes.json(); setEmpLeaves(d.leaves || []); }
     setDetailLoading(false);
+  };
+
+  const reviewDoc = async (docKey, status, remarks) => {
+    const { kind, rec } = docTarget;
+    setDocBusy(docKey); setDocError('');
+    try {
+      const updated = await reviewDocument(kind, rec.id, docKey, status, remarks);
+      const swap = list => list.map(x => (x.id === updated.id ? updated : x));
+      if (kind === 'fulltime') setEmployees(swap); else setPartTime(swap);
+      setDocTarget({ kind, rec: updated });
+    } catch (err) { setDocError(err.message); } finally { setDocBusy(''); }
   };
 
   const filter = (arr, nameKey = 'firstName') => {
@@ -82,10 +98,10 @@ export default function AccountantEmployeesPage() {
         <table className="data-table">
           <thead>
             {tab === 'fulltime' && (
-              <tr><th>#</th><th>Name</th><th>Phone</th><th>Designation</th><th>Status</th><th>Action</th></tr>
+              <tr><th>#</th><th>Name</th><th>Phone</th><th>Designation</th><th>Profile</th><th>Status</th><th>Action</th></tr>
             )}
             {tab === 'parttime' && (
-              <tr><th>#</th><th>Name</th><th>Phone</th><th>Aadhar Doc</th><th>Photo</th><th>Registered</th><th>Status</th></tr>
+              <tr><th>#</th><th>Name</th><th>Phone</th><th>Aadhar Doc</th><th>Photo</th><th>Profile</th><th>Registered</th><th>Status</th><th>Documents</th></tr>
             )}
             {tab === 'supervisors' && (
               <tr><th>#</th><th>Name</th><th>Username</th><th>Phone</th><th>Assigned Sites</th><th>Status</th></tr>
@@ -109,8 +125,12 @@ export default function AccountantEmployeesPage() {
                 </td>
                 <td>{emp.phone}</td>
                 <td>{emp.designation || 'Driver'}</td>
+                <td><ProfileCompletion completion={emp.profileCompletion} showMissing compact /></td>
                 <td>{statusBadge(emp.status)}</td>
-                <td><button className="btn-secondary btn-small" onClick={() => viewEmployee(emp)}>View History</button></td>
+                <td style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn-secondary btn-small" onClick={() => viewEmployee(emp)}>View History</button>
+                  <button className="btn-secondary btn-small" onClick={() => { setDocError(''); setDocTarget({ kind: 'fulltime', rec: emp }); }}>Documents</button>
+                </td>
               </tr>
             ))}
             {tab === 'parttime' && filter(partTime).map((d, i) => (
@@ -120,8 +140,10 @@ export default function AccountantEmployeesPage() {
                 <td>{d.phone}</td>
                 <td>{d.aadharDocUrl ? <a href={d.aadharDocUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: '0.8rem' }}>View ↗</a> : '—'}</td>
                 <td><LazyPhoto src={d.photoUrl} size={90} /></td>
+                <td><ProfileCompletion completion={d.profileCompletion} showMissing compact /></td>
                 <td style={{ fontSize: '0.78rem' }}>{new Date(d.registrationDate || d.createdAt).toLocaleDateString('en-IN')}</td>
                 <td>{statusBadge(d.status)}</td>
+                <td><button className="btn-secondary btn-small" onClick={() => { setDocError(''); setDocTarget({ kind: 'parttime', rec: d }); }}>Documents</button></td>
               </tr>
             ))}
             {tab === 'supervisors' && filter(supervisors, 'name').map((s, i) => (
@@ -203,6 +225,22 @@ export default function AccountantEmployeesPage() {
                   {empLeaves.length === 0 && <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>No leave records</p>}
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {docTarget && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setDocTarget(null)}>
+          <div className="modal-content" style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <h2>{docTarget.rec.firstName} {docTarget.rec.lastName} — Documents</h2>
+              <button className="modal-close" onClick={() => setDocTarget(null)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {docError && <div className="login-error" style={{ marginBottom: 12 }}>{docError}</div>}
+              <ProfileCompletion completion={docTarget.rec.profileCompletion} showMissing />
+              <DocumentsPanel documents={docTarget.rec.documents} mode="review" onReview={reviewDoc} busyKey={docBusy} />
             </div>
           </div>
         </div>

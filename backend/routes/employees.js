@@ -45,6 +45,7 @@ const DaySchedule = require('../models/DaySchedule');
 const OperationalManager = require('../models/OperationalManager');
 const { requireHRAuth, requireRole } = require('./hrAuth');
 const { requireDriverAuth } = require('./driverAuth');
+const { DOC_URL_FIELDS, FULL_TIME_DOCS, PART_TIME_DOCS, docStatus } = require('../utils/profileCompletion');
 
 const router = express.Router();
 
@@ -82,6 +83,134 @@ async function uploadToCloudinary(buffer, folder, publicId, resourceType = 'imag
   });
 }
 
+// Upload optional files from multer's req.files. spec: { fieldName: [urlKey, publicId, resourceType] }
+async function uploadFiles(files, spec, folder) {
+  const out = {};
+  for (const [field, [urlKey, publicId, resourceType]] of Object.entries(spec)) {
+    if (files?.[field]?.[0]) {
+      const r = await uploadToCloudinary(files[field][0].buffer, folder, publicId, resourceType);
+      out[urlKey] = r.secure_url;
+    }
+  }
+  return out;
+}
+
+// Bank details are compulsory on the public registration forms
+function bankDetailsError(data, files) {
+  const required = [
+    ['bankName', 'Bank name'],
+    ['bankAccountNumber', 'Account number'],
+    ['bankIfsc', 'IFSC code'],
+    ['bankAccountHolderName', 'Account holder name'],
+    ['bankBranchName', 'Branch name'],
+  ];
+  for (const [key, label] of required) {
+    if (!String(data[key] || '').trim()) return `${label} is required`;
+  }
+  if (!files?.passbookDoc?.[0]) return 'Passbook photo is required';
+  return null;
+}
+
+const FT_DOC_SPEC = {
+  aadharDoc: ['aadharDocUrl', 'aadhar', 'auto'],
+  panDoc: ['panDocUrl', 'pan', 'auto'],
+  photo: ['photoUrl', 'photo', 'image'],
+  licenseDoc: ['licenseDocUrl', 'license', 'auto'],
+  passbookDoc: ['passbookDocUrl', 'passbook', 'auto'],
+};
+const FT_DOC_FIELDS = Object.keys(FT_DOC_SPEC).map(name => ({ name, maxCount: 1 }));
+
+const PT_DOC_SPEC = {
+  aadharDoc: ['aadharDocUrl', 'aadhar', 'auto'],
+  photo: ['photoUrl', 'photo', 'image'],
+  licenseDoc: ['licenseDocUrl', 'license', 'auto'],
+  passbookDoc: ['passbookDocUrl', 'passbook', 'auto'],
+};
+const PT_DOC_FIELDS = Object.keys(PT_DOC_SPEC).map(name => ({ name, maxCount: 1 }));
+
+// Clear the review of every document whose file was just replaced (it goes back to "pending")
+function resetReviewsFor(rec, urls) {
+  const reviews = { ...(rec.docReviews || {}) };
+  Object.keys(urls).forEach(urlKey => {
+    const docKey = Object.keys(DOC_URL_FIELDS).find(k => DOC_URL_FIELDS[k] === urlKey);
+    if (docKey) delete reviews[docKey];
+  });
+  rec.docReviews = reviews;
+}
+
+// Fields the client must never set directly
+function stripServerFields(body) {
+  const { docReviews, documents, profileCompletion, id, password, isLoginEnabled, ...clean } = body;
+  return clean;
+}
+
+const DOC_UPLOAD_SPEC = {
+  photo: ['photoUrl', 'photo', 'image'],
+  aadhar: ['aadharDocUrl', 'aadhar', 'auto'],
+  pan: ['panDocUrl', 'pan', 'auto'],
+  license: ['licenseDocUrl', 'license', 'auto'],
+  passbook: ['passbookDocUrl', 'passbook', 'auto'],
+};
+
+// HR / accountant: approve or reject one uploaded document
+function reviewDocHandler(Model, validDocs, respKey) {
+  return async (req, res) => {
+    try {
+      const key = req.params.doc;
+      const { status, remarks } = req.body;
+      if (!validDocs.includes(key)) return res.status(400).json({ message: 'Unknown document' });
+      if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ message: 'Status must be approved or rejected' });
+      if (status === 'rejected' && !String(remarks || '').trim()) return res.status(400).json({ message: 'Remarks are required to reject a document' });
+      const rec = await Model.findById(req.params.id);
+      if (!rec) return res.status(404).json({ message: 'Record not found' });
+      if (docStatus(rec, key) === 'missing') return res.status(400).json({ message: 'Document has not been uploaded' });
+      rec.docReviews = {
+        ...(rec.docReviews || {}),
+        [key]: {
+          status,
+          remarks: status === 'rejected' ? String(remarks).trim() : '',
+          reviewedBy: req.hrUser.name,
+          reviewedByRole: req.hrUser.role,
+          reviewedAt: new Date(),
+        },
+      };
+      await rec.save();
+      return res.json({ success: true, [respKey]: rec });
+    } catch (err) {
+      return res.status(500).json({ message: err.message });
+    }
+  };
+}
+
+// Driver: upload (or re-upload) a document that is missing or was rejected. It goes back to "pending".
+function driverUploadDocHandler(Model, validDocs, getId, folderBase, respKey) {
+  return async (req, res) => {
+    try {
+      const key = req.params.doc;
+      if (!validDocs.includes(key)) return res.status(400).json({ message: 'Unknown document' });
+      if (!req.file) return res.status(400).json({ message: 'Please choose a file to upload' });
+      if (key === 'photo' && !req.file.mimetype.startsWith('image/')) return res.status(400).json({ message: 'Photograph must be an image' });
+      const rec = await Model.findById(getId(req));
+      if (!rec) return res.status(404).json({ message: 'Record not found' });
+      const current = docStatus(rec, key);
+      if (current !== 'missing' && current !== 'rejected') {
+        return res.status(400).json({ message: 'Only rejected or missing documents can be uploaded again' });
+      }
+      const [urlKey, publicId, resourceType] = DOC_UPLOAD_SPEC[key];
+      const r = await uploadToCloudinary(req.file.buffer, `${folderBase}/${rec.id}`, publicId, resourceType);
+      rec[urlKey] = r.secure_url;
+      rec.docReviews = {
+        ...(rec.docReviews || {}),
+        [key]: { status: 'pending', remarks: '', resubmittedAt: new Date() },
+      };
+      await rec.save();
+      return res.json({ success: true, [respKey]: rec });
+    } catch (err) {
+      return res.status(500).json({ message: err.message });
+    }
+  };
+}
+
 function hashPassword(str) {
   return crypto.createHash('sha256').update(str).digest('hex');
 }
@@ -91,53 +220,24 @@ function hashPassword(str) {
 // Public: submit full-time registration form
 router.post(
   '/public/fulltime',
-  upload.fields([
-    { name: 'aadharDoc', maxCount: 1 },
-    { name: 'panDoc', maxCount: 1 },
-    { name: 'photo', maxCount: 1 },
-  ]),
+  upload.fields(FT_DOC_FIELDS),
   async (req, res) => {
     try {
       const data = req.body;
       const token = uuidv4();
 
-      let aadharDocUrl = '';
-      let panDocUrl = '';
-      let photoUrl = '';
+      const bankError = bankDetailsError(data, req.files);
+      if (bankError) return res.status(400).json({ message: bankError });
 
       // Temp upload with token as folder
-      if (req.files?.aadharDoc?.[0]) {
-        const r = await uploadToCloudinary(
-          req.files.aadharDoc[0].buffer,
-          `growmore/pending/${token}`,
-          'aadhar',
-          'auto'
-        );
-        aadharDocUrl = r.secure_url;
-      }
-      if (req.files?.panDoc?.[0]) {
-        const r = await uploadToCloudinary(
-          req.files.panDoc[0].buffer,
-          `growmore/pending/${token}`,
-          'pan',
-          'auto'
-        );
-        panDocUrl = r.secure_url;
-      }
-      if (req.files?.photo?.[0]) {
-        const r = await uploadToCloudinary(
-          req.files.photo[0].buffer,
-          `growmore/pending/${token}`,
-          'photo'
-        );
-        photoUrl = r.secure_url;
-      }
+      const urls = await uploadFiles(req.files, FT_DOC_SPEC, `growmore/pending/${token}`);
 
       const employee = await Employee.create({
         ...data,
-        aadharDocUrl,
-        panDocUrl,
-        photoUrl,
+        aadharDocUrl: '',
+        panDocUrl: '',
+        photoUrl: '',
+        ...urls,
         status: 'pending',
         submittedViaPublicForm: true,
         publicFormToken: token,
@@ -156,37 +256,22 @@ router.post(
 // Public: submit part-time registration form
 router.post(
   '/public/parttime',
-  upload.fields([{ name: 'aadharDoc', maxCount: 1 }, { name: 'photo', maxCount: 1 }]),
+  upload.fields(PT_DOC_FIELDS),
   async (req, res) => {
     try {
       const data = req.body;
       const token = uuidv4();
-      let aadharDocUrl = '';
-      let photoUrl = '';
 
-      if (req.files?.photo?.[0]) {
-        const r = await uploadToCloudinary(
-          req.files.photo[0].buffer,
-          `growmore/registration/part-time/${token}`,
-          'photo'
-        );
-        photoUrl = r.secure_url;
-      }
+      const bankError = bankDetailsError(data, req.files);
+      if (bankError) return res.status(400).json({ message: bankError });
 
-      if (req.files?.aadharDoc?.[0]) {
-        const r = await uploadToCloudinary(
-          req.files.aadharDoc[0].buffer,
-          `growmore/parttime/pending/${token}`,
-          'aadhar',
-          'auto'
-        );
-        aadharDocUrl = r.secure_url;
-      }
+      const urls = await uploadFiles(req.files, PT_DOC_SPEC, `growmore/registration/part-time/${token}`);
 
       const driver = await PartTimeDriver.create({
         ...data,
-        aadharDocUrl,
-        photoUrl,
+        aadharDocUrl: '',
+        photoUrl: '',
+        ...urls,
         registrationDate: new Date(),
         status: 'pending',
         submittedViaPublicForm: true,
@@ -206,7 +291,8 @@ router.get('/public/fulltime/:token', async (req, res) => {
   try {
     const emp = await Employee.findOne({ publicFormToken: req.params.token });
     if (!emp) return res.status(404).json({ message: 'Application not found' });
-    return res.json({ employee: emp });
+    const { firstName, lastName, phone, email, city, state } = emp;
+    return res.json({ employee: { firstName, lastName, phone, email, city, state } });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -217,7 +303,8 @@ router.get('/public/parttime/:token', async (req, res) => {
   try {
     const driver = await PartTimeDriver.findOne({ publicFormToken: req.params.token });
     if (!driver) return res.status(404).json({ message: 'Application not found' });
-    return res.json({ driver });
+    const { firstName, lastName, phone, email, address } = driver;
+    return res.json({ driver: { firstName, lastName, phone, email, address } });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -232,7 +319,8 @@ router.get('/parttime/punch/:token', async (req, res) => {
     if (!driver) return res.status(404).json({ message: 'Invalid or inactive punch link' });
     const today = new Date().toISOString().split('T')[0];
     const existingPunch = await PartTimePunch.findOne({ driver: driver._id, date: today });
-    return res.json({ driver, punch: existingPunch || null, today });
+    const { firstName, lastName, phone } = driver;
+    return res.json({ driver: { firstName, lastName, phone }, punch: existingPunch || null, today });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -315,7 +403,7 @@ router.get('/fulltime', requireHRAuth, async (req, res) => {
 });
 
 // Get single full-time employee
-router.get('/fulltime/:id', requireHRAuth, async (req, res) => {
+router.get('/fulltime/:id([0-9a-fA-F]{24})', requireHRAuth, async (req, res) => {
   try {
     const emp = await Employee.findById(req.params.id).select('-password');
     if (!emp) return res.status(404).json({ message: 'Employee not found' });
@@ -329,37 +417,15 @@ router.get('/fulltime/:id', requireHRAuth, async (req, res) => {
 router.post(
   '/fulltime',
   requireHRAuth,
-  upload.fields([
-    { name: 'aadharDoc', maxCount: 1 },
-    { name: 'panDoc', maxCount: 1 },
-    { name: 'photo', maxCount: 1 },
-  ]),
+  upload.fields(FT_DOC_FIELDS),
   async (req, res) => {
     try {
-      const data = req.body;
-      let aadharDocUrl = '';
-      let panDocUrl = '';
-      let photoUrl = '';
-
-      const tempId = uuidv4();
-      if (req.files?.aadharDoc?.[0]) {
-        const r = await uploadToCloudinary(req.files.aadharDoc[0].buffer, `growmore/fulltime/${tempId}`, 'aadhar', 'auto');
-        aadharDocUrl = r.secure_url;
-      }
-      if (req.files?.panDoc?.[0]) {
-        const r = await uploadToCloudinary(req.files.panDoc[0].buffer, `growmore/fulltime/${tempId}`, 'pan', 'auto');
-        panDocUrl = r.secure_url;
-      }
-      if (req.files?.photo?.[0]) {
-        const r = await uploadToCloudinary(req.files.photo[0].buffer, `growmore/fulltime/${tempId}`, 'photo');
-        photoUrl = r.secure_url;
-      }
+      const data = stripServerFields(req.body);
+      const urls = await uploadFiles(req.files, FT_DOC_SPEC, `growmore/fulltime/${uuidv4()}`);
 
       const employee = await Employee.create({
         ...data,
-        aadharDocUrl: aadharDocUrl || data.aadharDocUrl || '',
-        panDocUrl: panDocUrl || data.panDocUrl || '',
-        photoUrl: photoUrl || data.photoUrl || '',
+        ...urls,
         status: 'hr_approved',
         declarationAccepted: data.declarationAccepted === 'true' || data.declarationAccepted === true,
         declarationDate: new Date(),
@@ -377,11 +443,7 @@ router.post(
 router.put(
   '/fulltime/:id',
   requireHRAuth,
-  upload.fields([
-    { name: 'aadharDoc', maxCount: 1 },
-    { name: 'panDoc', maxCount: 1 },
-    { name: 'photo', maxCount: 1 },
-  ]),
+  upload.fields(FT_DOC_FIELDS),
   async (req, res) => {
     try {
       const emp = await Employee.findById(req.params.id);
@@ -389,23 +451,18 @@ router.put(
 
       const data = req.body;
 
-      if (req.files?.aadharDoc?.[0]) {
-        const r = await uploadToCloudinary(req.files.aadharDoc[0].buffer, `growmore/fulltime/${emp.id}`, 'aadhar', 'auto');
-        emp.aadharDocUrl = r.secure_url;
-      }
-      if (req.files?.panDoc?.[0]) {
-        const r = await uploadToCloudinary(req.files.panDoc[0].buffer, `growmore/fulltime/${emp.id}`, 'pan', 'auto');
-        emp.panDocUrl = r.secure_url;
-      }
-      if (req.files?.photo?.[0]) {
-        const r = await uploadToCloudinary(req.files.photo[0].buffer, `growmore/fulltime/${emp.id}`, 'photo');
-        emp.photoUrl = r.secure_url;
-      }
+      const urls = await uploadFiles(req.files, FT_DOC_SPEC, `growmore/fulltime/${emp.id}`);
+      Object.assign(emp, urls);
+      resetReviewsFor(emp, urls);
 
       // Update fields
       const fields = ['firstName', 'lastName', 'phone', 'email', 'dob', 'gender', 'bloodGroup',
         'addressLine1', 'addressLine2', 'city', 'state', 'pincode',
-        'aadharNumber', 'panNumber', 'designation', 'department', 'joiningDate', 'salary'];
+        'aadharNumber', 'panNumber', 'designation', 'department', 'joiningDate', 'salary',
+        'venue', 'aadharAddressLine1', 'aadharAddressLine2', 'aadharCity', 'aadharState', 'aadharPincode',
+        'emergencyContactName', 'emergencyContactPhone',
+        'bankName', 'bankAccountNumber', 'bankIfsc', 'bankAccountHolderName', 'bankBranchName',
+        'pfNumber', 'esicNumber'];
       fields.forEach(f => { if (data[f] !== undefined) emp[f] = data[f]; });
 
       if (data.declarationAccepted === 'true' || data.declarationAccepted === true) {
@@ -471,7 +528,7 @@ router.get('/supervisors', requireHRAuth, async (req, res) => {
 });
 
 // Get single part-time driver
-router.get('/parttime/:id', requireHRAuth, async (req, res) => {
+router.get('/parttime/:id([0-9a-fA-F]{24})', requireHRAuth, async (req, res) => {
   try {
     const driver = await PartTimeDriver.findById(req.params.id);
     if (!driver) return res.status(404).json({ message: 'Driver not found' });
@@ -485,22 +542,16 @@ router.get('/parttime/:id', requireHRAuth, async (req, res) => {
 router.post(
   '/parttime',
   requireHRAuth,
-  upload.fields([{ name: 'aadharDoc', maxCount: 1 }]),
+  upload.fields(PT_DOC_FIELDS),
   async (req, res) => {
     try {
-      const data = req.body;
-      let aadharDocUrl = '';
-      const tempId = uuidv4();
-      if (req.files?.aadharDoc?.[0]) {
-        const r = await uploadToCloudinary(req.files.aadharDoc[0].buffer, `growmore/parttime/${tempId}`, 'aadhar', 'auto');
-        aadharDocUrl = r.secure_url;
-      }
-      const punchToken = uuidv4();
+      const data = stripServerFields(req.body);
+      const urls = await uploadFiles(req.files, PT_DOC_SPEC, `growmore/parttime/${uuidv4()}`);
       const driver = await PartTimeDriver.create({
         ...data,
-        aadharDocUrl: aadharDocUrl || data.aadharDocUrl || '',
+        ...urls,
         status: 'approved',
-        punchToken,
+        punchToken: uuidv4(),
       });
       return res.json({ success: true, driver });
     } catch (err) {
@@ -513,17 +564,17 @@ router.post(
 router.put(
   '/parttime/:id',
   requireHRAuth,
-  upload.fields([{ name: 'aadharDoc', maxCount: 1 }]),
+  upload.fields(PT_DOC_FIELDS),
   async (req, res) => {
     try {
       const driver = await PartTimeDriver.findById(req.params.id);
       if (!driver) return res.status(404).json({ message: 'Driver not found' });
       const data = req.body;
-      if (req.files?.aadharDoc?.[0]) {
-        const r = await uploadToCloudinary(req.files.aadharDoc[0].buffer, `growmore/parttime/${driver.id}`, 'aadhar', 'auto');
-        driver.aadharDocUrl = r.secure_url;
-      }
-      ['firstName', 'lastName', 'phone', 'email', 'aadharNumber', 'address'].forEach(f => {
+      const urls = await uploadFiles(req.files, PT_DOC_SPEC, `growmore/parttime/${driver.id}`);
+      Object.assign(driver, urls);
+      resetReviewsFor(driver, urls);
+      ['firstName', 'lastName', 'phone', 'email', 'aadharNumber', 'address',
+        'bankName', 'bankAccountNumber', 'bankIfsc', 'bankAccountHolderName', 'bankBranchName'].forEach(f => {
         if (data[f] !== undefined) driver[f] = data[f];
       });
       await driver.save();
@@ -534,6 +585,10 @@ router.put(
   }
 );
 
+// HR / accountant: review an uploaded document
+router.post('/fulltime/:id/docs/:doc/review', requireHRAuth, reviewDocHandler(Employee, FULL_TIME_DOCS, 'employee'));
+router.post('/parttime/:id/docs/:doc/review', requireHRAuth, reviewDocHandler(PartTimeDriver, PART_TIME_DOCS, 'driver'));
+
 // HR: Approve part-time driver
 router.post('/parttime/:id/approve', requireHRAuth, requireRole('hr'), async (req, res) => {
   try {
@@ -542,6 +597,9 @@ router.post('/parttime/:id/approve', requireHRAuth, requireRole('hr'), async (re
     driver.status = 'approved';
     driver.rejectionRemarks = '';
     if (!driver.punchToken) driver.punchToken = uuidv4();
+    // Set login credentials: phone = username, firstName lowercase = password
+    driver.password = hashPassword(driver.firstName.toLowerCase().trim());
+    driver.isLoginEnabled = true;
     await driver.save();
     return res.json({ success: true, driver, punchLink: `/punchin/${driver.punchToken}` });
   } catch (err) {
@@ -757,7 +815,7 @@ router.get('/punches/parttime/date/:date', requireHRAuth, async (req, res) => {
 });
 
 // Get all part-time punches for a driver
-router.get('/punches/parttime/:driverId', requireHRAuth, async (req, res) => {
+router.get('/punches/parttime/:driverId([0-9a-fA-F]{24})', requireHRAuth, async (req, res) => {
   try {
     const punches = await PartTimePunch.find({ driver: req.params.driverId }).sort({ date: -1 });
     return res.json({ punches });
@@ -841,5 +899,147 @@ router.put('/leaves/:id', requireHRAuth, requireRole('accountant'), async (req, 
     return res.status(500).json({ message: err.message });
   }
 });
+
+// ─── PART-TIME DRIVER PORTAL ROUTES (authenticated via pt_driver_token) ──────
+
+const { requirePartTimeDriverAuth } = require('./partTimeDriverAuth');
+
+// PT Driver: get own profile
+router.get('/parttime/me', requirePartTimeDriverAuth, async (req, res) => {
+  try {
+    const driver = await PartTimeDriver.findById(req.ptDriver.id).select('-password');
+    if (!driver) return res.status(404).json({ message: 'Driver not found' });
+    return res.json({ driver });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// PT Driver: upload / re-upload a missing or rejected document
+router.post(
+  '/parttime/me/docs/:doc',
+  requirePartTimeDriverAuth,
+  upload.single('file'),
+  driverUploadDocHandler(PartTimeDriver, PART_TIME_DOCS, req => req.ptDriver.id, 'growmore/parttime', 'driver')
+);
+
+// PT Driver: get own punch history
+router.get('/punches/parttime/me', requirePartTimeDriverAuth, async (req, res) => {
+  try {
+    const punches = await PartTimePunch.find({ driver: req.ptDriver.id }).sort({ date: -1 });
+    return res.json({ punches });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// PT Driver: punch in (with optional photo)
+router.post(
+  '/punches/parttime/me',
+  requirePartTimeDriverAuth,
+  upload.single('photo'),
+  async (req, res) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const driverId = req.ptDriver.id;
+      const { action, lat, lng, address } = req.body;
+      const location = { lat: lat ? Number(lat) : null, lng: lng ? Number(lng) : null, address: address || '' };
+
+      let punch = await PartTimePunch.findOne({ driver: driverId, date: today });
+
+      if (action === 'punchin') {
+        if (punch) return res.status(400).json({ message: 'Already punched in today' });
+        let photoUrl = '';
+        if (req.file) {
+          try {
+            const result = await uploadToCloudinary(
+              req.file.buffer,
+              `growmore/parttime/${driverId}`,
+              `punchin_${today}`,
+              'image'
+            );
+            photoUrl = result.secure_url;
+          } catch (uploadErr) {
+            console.warn('[PT Punch Photo Upload]', uploadErr.message);
+          }
+        }
+        punch = await PartTimePunch.create({
+          driver: driverId,
+          date: today,
+          punchInTime: new Date(),
+          location,
+          punchInPhotoUrl: photoUrl,
+        });
+      } else if (action === 'punchout') {
+        if (!punch) return res.status(400).json({ message: 'Punch in first' });
+        if (punch.punchOutTime) return res.status(400).json({ message: 'Already punched out today' });
+        let photoUrl = '';
+        if (req.file) {
+          try {
+            const result = await uploadToCloudinary(
+              req.file.buffer,
+              `growmore/parttime/${driverId}`,
+              `punchout_${today}`,
+              'image'
+            );
+            photoUrl = result.secure_url;
+          } catch (uploadErr) {
+            console.warn('[PT Punchout Photo Upload]', uploadErr.message);
+          }
+        }
+        punch.punchOutTime = new Date();
+        punch.punchOutLocation = location;
+        punch.punchOutPhotoUrl = photoUrl;
+        await punch.save();
+      } else {
+        return res.status(400).json({ message: 'Invalid action. Use punchin or punchout.' });
+      }
+
+      return res.json({ success: true, punch });
+    } catch (err) {
+      return res.status(500).json({ message: err.message });
+    }
+  }
+);
+
+// PT Driver: get schedules for a month (which days they are assigned)
+router.get('/schedule/parttime/me', requirePartTimeDriverAuth, async (req, res) => {
+  try {
+    const { month, year } = req.query;
+    if (!month || !year) return res.status(400).json({ message: 'month and year required' });
+    const start = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const end = `${year}-${String(month).padStart(2, '0')}-${endDay}`;
+    // Find all schedules that include this driver
+    const schedules = await DaySchedule.find({
+      date: { $gte: start, $lte: end },
+      partTimeDrivers: req.ptDriver.id,
+    })
+      .populate('fullTimeDrivers', 'firstName lastName phone')
+      .populate('partTimeDrivers', 'firstName lastName phone');
+    return res.json({ schedules });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── FULL-TIME DRIVER PROFILE / DOCUMENTS (authenticated via driver_token) ────
+
+router.get('/fulltime/me', requireDriverAuth, async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.driver.id).select('-password');
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+    return res.json({ employee });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.post(
+  '/fulltime/me/docs/:doc',
+  requireDriverAuth,
+  upload.single('file'),
+  driverUploadDocHandler(Employee, FULL_TIME_DOCS, req => req.driver.id, 'growmore/fulltime', 'employee')
+);
 
 module.exports = router;

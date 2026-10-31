@@ -12,6 +12,7 @@ const managerRoutes = require('./routes/managers');
 const logRoutes = require('./routes/logs');
 const { router: hrAuthRouter } = require('./routes/hrAuth');
 const { router: driverAuthRouter } = require('./routes/driverAuth');
+const { router: ptDriverAuthRouter } = require('./routes/partTimeDriverAuth');
 const employeeRoutes = require('./routes/employees');
 
 const app = express();
@@ -50,6 +51,7 @@ app.use('/api/logs', logRoutes);
 // HR System Routes
 app.use('/api/hr/auth', hrAuthRouter);
 app.use('/api/driver/auth', driverAuthRouter);
+app.use('/api/ptdriver/auth', ptDriverAuthRouter);
 app.use('/api/employees', employeeRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────

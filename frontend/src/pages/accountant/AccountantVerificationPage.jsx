@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import ProfileCompletion from '../../components/ProfileCompletion';
+import DocumentsPanel, { reviewDocument } from '../../components/DocumentsPanel';
 
 export default function AccountantVerificationPage() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmp, setSelectedEmp] = useState(null);
+  const [docBusy, setDocBusy] = useState('');
   const [remarks, setRemarks] = useState('');
   const [rejectModal, setRejectModal] = useState(null);
   const [toast, setToast] = useState('');
@@ -72,6 +75,9 @@ export default function AccountantVerificationPage() {
                     <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{emp.firstName} {emp.lastName}</h3>
                     <span className="badge badge-warning">Pending Verification</span>
                   </div>
+                  <div style={{ maxWidth: 320, marginBottom: 10 }}>
+                    <ProfileCompletion completion={emp.profileCompletion} showMissing />
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
                     {[
                       ['📱 Phone', emp.phone],
@@ -80,6 +86,12 @@ export default function AccountantVerificationPage() {
                       ['🪪 Aadhar', emp.aadharNumber || '—'],
                       ['📄 PAN', emp.panNumber || '—'],
                       ['💼 Designation', emp.designation || 'Driver'],
+                      ['📍 Venue', emp.venue || '—'],
+                      ['🏦 Bank', [emp.bankName, emp.bankBranchName].filter(Boolean).join(' — ') || '—'],
+                      ['👤 A/c Holder', emp.bankAccountHolderName || '—'],
+                      ['💳 A/c No. / IFSC', [emp.bankAccountNumber, emp.bankIfsc].filter(Boolean).join(' / ') || '—'],
+                      ['🧾 PF No.', emp.pfNumber || '—'],
+                      ['🏥 ESIC No.', emp.esicNumber || '—'],
                       ['🏢 Dept', emp.department || '—'],
                       ['💰 Salary', emp.salary ? `₹${emp.salary.toLocaleString('en-IN')}` : '—'],
                       ['📅 Joining', emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString('en-IN') : '—'],
@@ -91,11 +103,17 @@ export default function AccountantVerificationPage() {
                       </div>
                     ))}
                   </div>
-                  {/* Document links */}
-                  <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                    {emp.aadharDocUrl && <a href={emp.aadharDocUrl} target="_blank" rel="noreferrer" className="btn-secondary btn-small">View Aadhar Doc ↗</a>}
-                    {emp.panDocUrl && <a href={emp.panDocUrl} target="_blank" rel="noreferrer" className="btn-secondary btn-small">View PAN Doc ↗</a>}
-                    <button className="btn-secondary btn-small" onClick={() => setSelectedEmp(emp)}>View Full Details</button>
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>Documents</div>
+                    <DocumentsPanel documents={emp.documents} mode="review" busyKey={docBusy}
+                      onReview={async (key, status, remarks) => {
+                        setDocBusy(key);
+                        try {
+                          const updated = await reviewDocument('fulltime', emp.id, key, status, remarks);
+                          setEmployees(list => list.map(e => (e.id === updated.id ? updated : e)));
+                        } catch (err) { showToast(err.message, 'error'); }
+                        finally { setDocBusy(''); }
+                      }} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>

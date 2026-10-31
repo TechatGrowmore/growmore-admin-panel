@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { HRAuthProvider, useHRAuth } from './context/HRAuthContext';
 import { DriverAuthProvider, useDriverAuth } from './context/DriverAuthContext';
+import { PTDriverAuthProvider, usePTDriverAuth } from './context/PTDriverAuthContext';
 
 // Existing Admin Pages
 import LoginPage from './pages/LoginPage';
@@ -32,9 +33,13 @@ import AccountantEmployeesPage from './pages/accountant/AccountantEmployeesPage'
 import AccountantAttendancePage from './pages/accountant/AccountantAttendancePage';
 import AccountantLeavesPage from './pages/accountant/AccountantLeavesPage';
 
-// Driver Pages
+// Full-Time Driver Pages
 import DriverLoginPage from './pages/driver/DriverLoginPage';
 import DriverDashboard from './pages/driver/DriverDashboard';
+
+// Part-Time Driver Pages
+import PTDriverLoginPage from './pages/parttime/PTDriverLoginPage';
+import PTDriverDashboard from './pages/parttime/PTDriverDashboard';
 
 // Public Registration & Punch Pages
 import RegisterFullTimePage from './pages/RegisterFullTimePage';
@@ -130,13 +135,33 @@ function DriverProtectedRoute({ children }) {
   return children;
 }
 
+/**
+ * Part-Time Driver Protected Route
+ */
+function PTDriverProtectedRoute({ children }) {
+  const { user, loading } = usePTDriverAuth();
+  if (loading) {
+    return (
+      <div className="page-loading">
+        <div className="spinner" />
+        <span>Authenticating...</span>
+      </div>
+    );
+  }
+  if (!user) {
+    return <Navigate to="/parttime/login" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <HRAuthProvider>
         <DriverAuthProvider>
-          <BrowserRouter>
-            <Routes>
+          <PTDriverAuthProvider>
+            <BrowserRouter>
+              <Routes>
               {/* ─── EXISTING ADMIN / MANAGER ROUTES ─── */}
               <Route path="/" element={<LoginPage />} />
 
@@ -235,10 +260,22 @@ export default function App() {
                 }
               />
 
+              {/* ─── PART-TIME DRIVER PORTAL ROUTES ─── */}
+              <Route path="/parttime/login" element={<PTDriverLoginPage />} />
+              <Route
+                path="/parttime/dashboard"
+                element={
+                  <PTDriverProtectedRoute>
+                    <PTDriverDashboard />
+                  </PTDriverProtectedRoute>
+                }
+              />
+
               {/* Catch-all */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
+        </PTDriverAuthProvider>
         </DriverAuthProvider>
       </HRAuthProvider>
     </AuthProvider>

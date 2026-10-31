@@ -107,8 +107,11 @@ export default function HRLoginPage() {
         </form>
 
         <div style={{ textAlign: 'center', marginTop: 20 }}>
-          <a href="/driver/login" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Driver Login →
+          <a href="/driver/login" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginRight: 16 }}>
+            FT Driver Login →
+          </a>
+          <a href="/parttime/login" style={{ fontSize: '0.8rem', color: 'var(--accent)' }}>
+            PT Driver Login →
           </a>
         </div>
         <p style={{ textAlign: 'center', marginTop: 16, fontSize: '0.75rem', color: 'var(--text-muted)' }}>

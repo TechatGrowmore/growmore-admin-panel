@@ -31,6 +31,9 @@ export default function AccountantEmployeesPage() {
       setLoading(false);
     };
     load();
+    // refresh when returning to this tab so HR-side deletions / changes show up
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
   }, []);
 
   const viewEmployee = async (emp) => {

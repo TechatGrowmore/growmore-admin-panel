@@ -157,7 +157,8 @@ export default function HRPartTimePage() {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this driver?')) return;
-    await fetch(`/api/employees/parttime/${id}`, { method: 'DELETE', credentials: 'include' });
+    const res = await fetch(`/api/employees/parttime/${id}`, { method: 'DELETE', credentials: 'include' });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.message || 'Could not delete driver'); return; }
     showToast('Driver deleted'); loadDrivers();
   };
 

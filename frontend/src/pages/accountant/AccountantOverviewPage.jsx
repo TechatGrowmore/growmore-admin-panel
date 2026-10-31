@@ -30,6 +30,8 @@ export default function AccountantOverviewPage() {
       } catch { } finally { setLoading(false); }
     };
     load();
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
   }, []);
 
   if (loading) return <div className="page-loading"><div className="spinner" /><span>Loading...</span></div>;

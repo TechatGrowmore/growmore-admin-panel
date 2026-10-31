@@ -648,7 +648,11 @@ router.post('/parttime/:id/reject', requireHRAuth, requireRole('hr'), async (req
 // HR: Delete part-time driver
 router.delete('/parttime/:id', requireHRAuth, requireRole('hr'), async (req, res) => {
   try {
-    await PartTimeDriver.findByIdAndDelete(req.params.id);
+    const id = req.params.id;
+    await PartTimeDriver.findByIdAndDelete(id);
+    // Remove the driver from every day's schedule and drop their punch records
+    await DaySchedule.updateMany({}, { $pull: { partTimeDrivers: id, partTimeAssignments: { driver: id } } });
+    await PartTimePunch.deleteMany({ driver: id });
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ message: err.message });
